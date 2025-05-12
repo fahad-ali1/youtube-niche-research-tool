@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model competitors {
+  id    String  @id @db.VarChar(255)
+  url   String  @db.VarChar(255)
+  title String? @db.VarChar(255)
+}
+
+model video_statistics {
+  id            String   @id @db.VarChar(255)
+  view_count    Int
+  like_count    Int
+  comment_count Int
+  publish_time  DateTime @db.Timestamp(6)
+  channel_id    String   @db.VarChar(255)
+  thumbnail     String?  @db.VarChar(255)
+  title         String?  @db.VarChar(255)
+}
