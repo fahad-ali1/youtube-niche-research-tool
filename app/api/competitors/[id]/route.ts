@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { setCachedData } from '@/lib/redis';
 
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
 // GET single competitor
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: Props
 ) {
   try {
-    const id = params.id;
+    const id = props.params.id;
     const competitor = await prisma.competitors.findUnique({
       where: { id },
     });
@@ -30,10 +36,10 @@ export async function GET(
 // UPDATE competitor
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: Props
 ) {
   try {
-    const id = params.id;
+    const id = props.params.id;
     const { url, title } = await request.json();
 
     // Check if competitor exists
@@ -74,10 +80,10 @@ export async function PUT(
 // DELETE competitor
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: Props
 ) {
   try {
-    const id = params.id;
+    const id = props.params.id;
     
     // Check if competitor exists
     const competitor = await prisma.competitors.findUnique({
