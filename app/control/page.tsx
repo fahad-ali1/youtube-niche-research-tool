@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Competitor, VideoStatistics } from '@/types';
 import { toast } from 'react-hot-toast';
-import { Trash2, ArrowLeft, ExternalLink, DownloadCloud, Loader2 } from 'lucide-react';
+import { Trash2, ArrowLeft, ExternalLink, DownloadCloud, Loader2, Pencil, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -22,6 +22,9 @@ export default function ControlPanel() {
   const [competitorStats, setCompetitorStats] = useState<Record<string, number>>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCacheWiping, setIsCacheWiping] = useState(false);
+  const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({ id: '', url: '', title: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch competitors on mount
   useEffect(() => {
@@ -39,9 +42,20 @@ export default function ControlPanel() {
     setIsUpdating(true);
     
     try {
-      const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || "http://localhost:5678/webhook/fetch_videos";
-      const response = await fetch(webhookUrl);
+      const response = await fetch('/api/fetch-videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
+      
+      if (data.timedOut) {
+        // Show timeout message
+        toast.success(data.message || "Workflow is updating! Refresh in a few minutes");
+        setIsUpdating(false);
+        return;
+      }
       
       if (data.success) {
         toast.success("Videos updated successfully");
@@ -121,6 +135,11 @@ export default function ControlPanel() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,12 +244,79 @@ export default function ControlPanel() {
 
   const selectedCompetitor = competitors.find(c => c.id === selectedChannel);
 
+  // Sort competitors: channels without titles first, then alphabetically by title
+  const sortedCompetitors = [...competitors].sort((a, b) => {
+    // If neither has a title, sort by ID
+    if (!a.title && !b.title) {
+      return a.id.localeCompare(b.id);
+    }
+    // If a doesn't have a title, it comes first
+    if (!a.title) return -1;
+    // If b doesn't have a title, it comes first
+    if (!b.title) return 1;
+    // Both have titles, sort alphabetically
+    return a.title.localeCompare(b.title);
+  });
+
   const filteredCompetitors = searchQuery.trim() === '' 
-    ? competitors 
-    : competitors.filter(comp => 
+    ? sortedCompetitors 
+    : sortedCompetitors.filter(comp => 
         (comp.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
         comp.id.toLowerCase().includes(searchQuery.toLowerCase())
       );
+
+  const handleEditChannel = (competitor: Competitor) => {
+    setEditingChannelId(competitor.id);
+    setEditFormData({
+      id: competitor.id,
+      url: competitor.url,
+      title: competitor.title || '',
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingChannelId(null);
+    setEditFormData({ id: '', url: '', title: '' });
+  };
+
+  const handleUpdateChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      // Validate form data
+      if (!editFormData.id.trim() || !editFormData.url.trim()) {
+        toast.error('Channel ID and URL are required');
+        setIsSaving(false);
+        return;
+      }
+
+      // Update channel
+      const response = await fetch(`/api/competitors/${editFormData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update channel');
+      }
+
+      // Refresh the competitors list
+      await fetchCompetitors();
+      
+      // Reset form
+      setEditingChannelId(null);
+      setEditFormData({ id: '', url: '', title: '' });
+      toast.success('Channel updated successfully');
+    } catch (error) {
+      console.error('Error updating channel:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update channel');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
@@ -364,42 +450,113 @@ export default function ControlPanel() {
                           hover:bg-gray-50 cursor-pointer transition-colors
                         `}
                       >
-                        <div className="flex justify-between items-start">
-                          <div 
-                            className="flex-grow" 
-                            onClick={() => handleChannelClick(competitor.id)}
-                          >
-                            <p className="font-bold">{competitor.title || competitor.id}</p>
-                            <div className="flex items-center text-sm text-gray-500">
-                              <span className="truncate">{competitor.url}</span>
-                              <a 
-                                href={competitor.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-1 text-blue-500 hover:text-blue-700"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink size={14} />
-                              </a>
+                        {editingChannelId === competitor.id ? (
+                          <form onSubmit={handleUpdateChannel} className="space-y-2">
+                            <div>
+                              <Label htmlFor="edit-id" className="text-sm font-bold">Channel ID</Label>
+                              <Input 
+                                id="edit-id"
+                                name="id"
+                                value={editFormData.id}
+                                onChange={handleEditInputChange}
+                                className="border-2 border-black mt-1"
+                                disabled
+                              />
                             </div>
-                            <div className="mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full inline-block">
-                              {competitorStats[competitor.id] !== undefined 
-                                ? `${competitorStats[competitor.id]} videos` 
-                                : 'Update to get stats'}
+                            
+                            <div>
+                              <Label htmlFor="edit-url" className="text-sm font-bold">Channel URL</Label>
+                              <Input 
+                                id="edit-url"
+                                name="url"
+                                value={editFormData.url}
+                                onChange={handleEditInputChange}
+                                className="border-2 border-black mt-1"
+                                required
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="edit-title" className="text-sm font-bold">Channel Title</Label>
+                              <Input 
+                                id="edit-title"
+                                name="title"
+                                value={editFormData.title}
+                                onChange={handleEditInputChange}
+                                className="border-2 border-black mt-1"
+                              />
+                            </div>
+                            
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                type="submit"
+                                disabled={isSaving}
+                                className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
+                              >
+                                <Check size={16} />
+                                {isSaving ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="bg-gray-200 text-gray-800 hover:bg-gray-300 flex items-center gap-1"
+                              >
+                                <X size={16} />
+                                Cancel
+                              </Button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="flex justify-between items-start">
+                            <div 
+                              className="flex-grow" 
+                              onClick={() => handleChannelClick(competitor.id)}
+                            >
+                              <p className="font-bold">{competitor.title || competitor.id}</p>
+                              <div className="flex items-center text-sm text-gray-500">
+                                <span className="truncate">{competitor.url}</span>
+                                <a 
+                                  href={competitor.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-1 text-blue-500 hover:text-blue-700"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
+                              </div>
+                              <div className="mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full inline-block">
+                                {competitorStats[competitor.id] !== undefined 
+                                  ? `${competitorStats[competitor.id]} videos` 
+                                  : 'Update to get stats'}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-2 border-blue-500 text-blue-500 hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditChannel(competitor);
+                                }}
+                              >
+                                <Pencil size={16} />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-2 border-red-500 text-red-500 hover:bg-red-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteChannel(competitor.id);
+                                }}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-2 border-red-500 text-red-500 hover:bg-red-50 ml-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteChannel(competitor.id);
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
+                        )}
                       </li>
                     ))}
                   </ul>

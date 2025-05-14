@@ -72,8 +72,13 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
 
   const calculatePerformance = () => {
     if (channelAvgViews && channelAvgViews > 0) {
+      // Handle the case where view_count is 0 or very low
+      if (view_count === 0) {
+        return 0;
+      }
       const percentage = (view_count / channelAvgViews) * 100;
-      return Math.round(percentage);
+      // Ensure we return at least 1% for videos with very low views
+      return Math.max(1, Math.round(percentage));
     }
     return null;
   };
@@ -112,7 +117,7 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
           `}
         >
           {/* Performance indicator (for all videos) */}
-          {channelAvgViews && performance && (
+          {channelAvgViews && performance !== null && (
             <div className="flex items-center mb-2">
               <div className={`px-2 py-0.5 rounded-full mr-2 text-xs font-medium ${
                 performance >= 120 ? 'bg-green-100 text-green-800' : 
@@ -125,7 +130,12 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
                 {isOutlier && <span className="ml-1">⚡</span>}
               </div>
               <span className={`text-xs ${performanceColor} font-medium`}>
-                {performance > 100 ? `+${performance - 100}%` : `${performance - 100}%`} vs avg
+                {performance === 0 ? 
+                  "0%" : 
+                  performance > 100 ? 
+                    `+${performance - 100}%` : 
+                    `${performance - 100}%`
+                } vs avg
               </span>
               
               {/* New video indicator with tooltip */}
@@ -174,7 +184,8 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
           <div className="flex justify-between items-end mt-auto">
             <button 
               onClick={handleChannelClick}
-              className="self-start px-2 py-0.5 text-xs font-medium border border-gray-300 rounded-md hover:border-[#587aff] hover:text-[#587aff]"
+              className="self-start px-2 py-0.5 text-xs font-medium border border-gray-300 rounded-md hover:border-[#587aff] hover:text-[#587aff] max-w-[50%] truncate"
+              title={channelTitle}
             >
               {channelTitle}
             </button>
@@ -221,7 +232,8 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
           <div className="flex items-center">
             <button 
               onClick={handleChannelClick}
-              className="px-3 py-1 bg-[#587aff] bg-opacity-10 text-white font-medium text-sm border border-[#587aff] rounded-md hover:bg-opacity-20 cursor-pointer hover:scale-105 transition-all duration-200"
+              className="px-3 py-1 bg-[#587aff] bg-opacity-10 text-[#587aff] font-medium text-sm border border-[#587aff] rounded-md hover:bg-opacity-20 cursor-pointer hover:scale-105 transition-all duration-200 max-w-[calc(100%-150px)] truncate"
+              title={channelTitle}
             >
               {channelTitle}
             </button>
@@ -303,7 +315,7 @@ export function VideoCard({ video, onChannelClick, competitors }: VideoCardProps
                 <div className="col-span-2 mt-1">
                   <div className="text-xs text-gray-500">Category</div>
                   <div className={`text-sm font-medium ${performanceColor}`}>
-                    {performanceLabel}
+                    {performance === 0 ? "No views yet" : performanceLabel}
                   </div>
                 </div>
               </div>
