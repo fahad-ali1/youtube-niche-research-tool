@@ -241,9 +241,20 @@ export default function Home() {
     setIsUpdating(true);
     
     try {
-      const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || "http://localhost:5678/webhook/fetch_videos";
-      const response = await fetch(webhookUrl);
+      const response = await fetch('/api/fetch-videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
+      
+      if (data.timedOut) {
+        // Show timeout message
+        toast.success(data.message || "Workflow is updating! Refresh in a few minutes");
+        setIsUpdating(false);
+        return;
+      }
       
       if (data.success) {
         // Refresh the videos with no cache
