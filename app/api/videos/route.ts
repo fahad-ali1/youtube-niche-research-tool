@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Calculate outliers and add status to videos
-      const allChannelIds = videos.map((v: VideoStatistics) => v.channel_id);
+      const allChannelIds = videos.map((v) => v.channel_id);
       const uniqueChannelIds = [...new Set(allChannelIds)] as string[];
       
       // Get each channel's average views in the last 3 months
@@ -236,7 +236,7 @@ export async function GET(request: NextRequest) {
       });
       
       // Add outlier status to videos
-      const videosWithOutlierStatus = videos.map((video: VideoStatistics) => {
+      const videosWithOutlierStatus = videos.map((video) => {
         const channelAvg = channelAverages[video.channel_id] || 0;
         const isOutlier = channelAvg > 0 && video.view_count >= channelAvg * outlierMultiplier; // Changed to >= to match the outliers-only case
         
