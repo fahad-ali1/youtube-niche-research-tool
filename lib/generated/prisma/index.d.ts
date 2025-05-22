@@ -2056,6 +2056,7 @@ export namespace Prisma {
     thumbnail: string | null
     title: string | null
     duration: number | null
+    isShort: boolean | null
   }
 
   export type Video_statisticsMaxAggregateOutputType = {
@@ -2068,6 +2069,7 @@ export namespace Prisma {
     thumbnail: string | null
     title: string | null
     duration: number | null
+    isShort: boolean | null
   }
 
   export type Video_statisticsCountAggregateOutputType = {
@@ -2080,6 +2082,7 @@ export namespace Prisma {
     thumbnail: number
     title: number
     duration: number
+    isShort: number
     _all: number
   }
 
@@ -2108,6 +2111,7 @@ export namespace Prisma {
     thumbnail?: true
     title?: true
     duration?: true
+    isShort?: true
   }
 
   export type Video_statisticsMaxAggregateInputType = {
@@ -2120,6 +2124,7 @@ export namespace Prisma {
     thumbnail?: true
     title?: true
     duration?: true
+    isShort?: true
   }
 
   export type Video_statisticsCountAggregateInputType = {
@@ -2132,6 +2137,7 @@ export namespace Prisma {
     thumbnail?: true
     title?: true
     duration?: true
+    isShort?: true
     _all?: true
   }
 
@@ -2231,6 +2237,7 @@ export namespace Prisma {
     thumbnail: string | null
     title: string | null
     duration: number | null
+    isShort: boolean
     _count: Video_statisticsCountAggregateOutputType | null
     _avg: Video_statisticsAvgAggregateOutputType | null
     _sum: Video_statisticsSumAggregateOutputType | null
@@ -2262,6 +2269,7 @@ export namespace Prisma {
     thumbnail?: boolean
     title?: boolean
     duration?: boolean
+    isShort?: boolean
   }, ExtArgs["result"]["video_statistics"]>
 
   export type video_statisticsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2274,6 +2282,7 @@ export namespace Prisma {
     thumbnail?: boolean
     title?: boolean
     duration?: boolean
+    isShort?: boolean
   }, ExtArgs["result"]["video_statistics"]>
 
   export type video_statisticsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2286,6 +2295,7 @@ export namespace Prisma {
     thumbnail?: boolean
     title?: boolean
     duration?: boolean
+    isShort?: boolean
   }, ExtArgs["result"]["video_statistics"]>
 
   export type video_statisticsSelectScalar = {
@@ -2298,9 +2308,10 @@ export namespace Prisma {
     thumbnail?: boolean
     title?: boolean
     duration?: boolean
+    isShort?: boolean
   }
 
-  export type video_statisticsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "view_count" | "like_count" | "comment_count" | "publish_time" | "channel_id" | "thumbnail" | "title" | "duration", ExtArgs["result"]["video_statistics"]>
+  export type video_statisticsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "view_count" | "like_count" | "comment_count" | "publish_time" | "channel_id" | "thumbnail" | "title" | "duration" | "isShort", ExtArgs["result"]["video_statistics"]>
 
   export type $video_statisticsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "video_statistics"
@@ -2315,6 +2326,7 @@ export namespace Prisma {
       thumbnail: string | null
       title: string | null
       duration: number | null
+      isShort: boolean
     }, ExtArgs["result"]["video_statistics"]>
     composites: {}
   }
@@ -2747,6 +2759,7 @@ export namespace Prisma {
     readonly thumbnail: FieldRef<"video_statistics", 'String'>
     readonly title: FieldRef<"video_statistics", 'String'>
     readonly duration: FieldRef<"video_statistics", 'Int'>
+    readonly isShort: FieldRef<"video_statistics", 'Boolean'>
   }
     
 
@@ -4153,7 +4166,8 @@ export namespace Prisma {
     channel_id: 'channel_id',
     thumbnail: 'thumbnail',
     title: 'title',
-    duration: 'duration'
+    duration: 'duration',
+    isShort: 'isShort'
   };
 
   export type Video_statisticsScalarFieldEnum = (typeof Video_statisticsScalarFieldEnum)[keyof typeof Video_statisticsScalarFieldEnum]
@@ -4243,6 +4257,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -4314,6 +4335,7 @@ export namespace Prisma {
     thumbnail?: StringNullableFilter<"video_statistics"> | string | null
     title?: StringNullableFilter<"video_statistics"> | string | null
     duration?: IntNullableFilter<"video_statistics"> | number | null
+    isShort?: BoolFilter<"video_statistics"> | boolean
   }
 
   export type video_statisticsOrderByWithRelationInput = {
@@ -4326,6 +4348,7 @@ export namespace Prisma {
     thumbnail?: SortOrderInput | SortOrder
     title?: SortOrderInput | SortOrder
     duration?: SortOrderInput | SortOrder
+    isShort?: SortOrder
   }
 
   export type video_statisticsWhereUniqueInput = Prisma.AtLeast<{
@@ -4341,6 +4364,7 @@ export namespace Prisma {
     thumbnail?: StringNullableFilter<"video_statistics"> | string | null
     title?: StringNullableFilter<"video_statistics"> | string | null
     duration?: IntNullableFilter<"video_statistics"> | number | null
+    isShort?: BoolFilter<"video_statistics"> | boolean
   }, "id">
 
   export type video_statisticsOrderByWithAggregationInput = {
@@ -4353,6 +4377,7 @@ export namespace Prisma {
     thumbnail?: SortOrderInput | SortOrder
     title?: SortOrderInput | SortOrder
     duration?: SortOrderInput | SortOrder
+    isShort?: SortOrder
     _count?: video_statisticsCountOrderByAggregateInput
     _avg?: video_statisticsAvgOrderByAggregateInput
     _max?: video_statisticsMaxOrderByAggregateInput
@@ -4373,6 +4398,7 @@ export namespace Prisma {
     thumbnail?: StringNullableWithAggregatesFilter<"video_statistics"> | string | null
     title?: StringNullableWithAggregatesFilter<"video_statistics"> | string | null
     duration?: IntNullableWithAggregatesFilter<"video_statistics"> | number | null
+    isShort?: BoolWithAggregatesFilter<"video_statistics"> | boolean
   }
 
   export type auth_tokensWhereInput = {
@@ -4484,6 +4510,7 @@ export namespace Prisma {
     thumbnail?: string | null
     title?: string | null
     duration?: number | null
+    isShort?: boolean
   }
 
   export type video_statisticsUncheckedCreateInput = {
@@ -4496,6 +4523,7 @@ export namespace Prisma {
     thumbnail?: string | null
     title?: string | null
     duration?: number | null
+    isShort?: boolean
   }
 
   export type video_statisticsUpdateInput = {
@@ -4508,6 +4536,7 @@ export namespace Prisma {
     thumbnail?: NullableStringFieldUpdateOperationsInput | string | null
     title?: NullableStringFieldUpdateOperationsInput | string | null
     duration?: NullableIntFieldUpdateOperationsInput | number | null
+    isShort?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type video_statisticsUncheckedUpdateInput = {
@@ -4520,6 +4549,7 @@ export namespace Prisma {
     thumbnail?: NullableStringFieldUpdateOperationsInput | string | null
     title?: NullableStringFieldUpdateOperationsInput | string | null
     duration?: NullableIntFieldUpdateOperationsInput | number | null
+    isShort?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type video_statisticsCreateManyInput = {
@@ -4532,6 +4562,7 @@ export namespace Prisma {
     thumbnail?: string | null
     title?: string | null
     duration?: number | null
+    isShort?: boolean
   }
 
   export type video_statisticsUpdateManyMutationInput = {
@@ -4544,6 +4575,7 @@ export namespace Prisma {
     thumbnail?: NullableStringFieldUpdateOperationsInput | string | null
     title?: NullableStringFieldUpdateOperationsInput | string | null
     duration?: NullableIntFieldUpdateOperationsInput | number | null
+    isShort?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type video_statisticsUncheckedUpdateManyInput = {
@@ -4556,6 +4588,7 @@ export namespace Prisma {
     thumbnail?: NullableStringFieldUpdateOperationsInput | string | null
     title?: NullableStringFieldUpdateOperationsInput | string | null
     duration?: NullableIntFieldUpdateOperationsInput | number | null
+    isShort?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type auth_tokensCreateInput = {
@@ -4743,6 +4776,11 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type video_statisticsCountOrderByAggregateInput = {
     id?: SortOrder
     view_count?: SortOrder
@@ -4753,6 +4791,7 @@ export namespace Prisma {
     thumbnail?: SortOrder
     title?: SortOrder
     duration?: SortOrder
+    isShort?: SortOrder
   }
 
   export type video_statisticsAvgOrderByAggregateInput = {
@@ -4772,6 +4811,7 @@ export namespace Prisma {
     thumbnail?: SortOrder
     title?: SortOrder
     duration?: SortOrder
+    isShort?: SortOrder
   }
 
   export type video_statisticsMinOrderByAggregateInput = {
@@ -4784,6 +4824,7 @@ export namespace Prisma {
     thumbnail?: SortOrder
     title?: SortOrder
     duration?: SortOrder
+    isShort?: SortOrder
   }
 
   export type video_statisticsSumOrderByAggregateInput = {
@@ -4837,6 +4878,14 @@ export namespace Prisma {
     _sum?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedIntNullableFilter<$PrismaModel>
     _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type DateTimeNullableFilter<$PrismaModel = never> = {
@@ -4917,6 +4966,10 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
   }
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
@@ -5018,6 +5071,11 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -5084,6 +5142,14 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {

@@ -267,115 +267,179 @@ export const makeYoutubeApiRequest = async (
 // Function to fetch competitor channel videos after a specific date
 export const fetchCompetitorVideos = async (
   channelId: string,
-  afterDate: Date
+  afterDate: Date,
+  forceRefresh: boolean = false
 ): Promise<YouTubeApiResponse & { videos?: any[] }> => {
   // Search for videos from this channel published after the specified date
   const searchEndpoint = "https://www.googleapis.com/youtube/v3/search";
-  const searchParams = {
-    part: "snippet",
-    channelId,
-    maxResults: "50",
-    order: "date",
-    type: "video",
-    publishedAfter: afterDate.toISOString(),
-  };
 
-  const searchResponse = await makeYoutubeApiRequest(
-    searchEndpoint,
-    searchParams
+  let allVideos: any[] = [];
+  let nextPageToken: string | undefined = undefined;
+  let attempts = 0;
+  const maxAttempts = 5; // Limit how many pages we'll request to avoid infinite loops
+
+  console.log(
+    `Fetching videos for channel ${channelId} published after ${afterDate.toISOString()}`
   );
 
-  if (!searchResponse.success) {
-    return {
-      success: false,
-      error: searchResponse.error || "Failed to search for videos",
-      invalidKey: searchResponse.invalidKey,
-      quotaExceeded: searchResponse.quotaExceeded,
-      keyUsed: searchResponse.keyUsed,
+  do {
+    attempts++;
+    const searchParams: Record<string, string> = {
+      part: "snippet",
+      channelId,
+      maxResults: "50", // Maximum allowed by YouTube API
+      order: "date",
+      type: "video",
+      publishedAfter: afterDate.toISOString(),
     };
-  }
 
-  // Check if the response has items
-  if (
-    !searchResponse.data.items ||
-    !Array.isArray(searchResponse.data.items) ||
-    searchResponse.data.items.length === 0
-  ) {
-    return {
-      success: true,
-      videos: [],
-      keyUsed: searchResponse.keyUsed,
-    };
-  }
-
-  // Safely extract video IDs
-  const videoIds = searchResponse.data.items
-    .filter((item: any) => item && item.id && item.id.videoId)
-    .map((item: any) => item.id.videoId)
-    .join(",");
-
-  if (!videoIds || videoIds.length === 0) {
-    return {
-      success: true,
-      videos: [],
-      keyUsed: searchResponse.keyUsed,
-    };
-  }
-
-  // Fetch detailed info for these videos
-  const videosEndpoint = "https://www.googleapis.com/youtube/v3/videos";
-  const videosParams = {
-    part: "snippet,contentDetails,statistics",
-    id: videoIds,
-  };
-
-  const videosResponse = await makeYoutubeApiRequest(
-    videosEndpoint,
-    videosParams
-  );
-
-  if (!videosResponse.success) {
-    return {
-      success: false,
-      error: videosResponse.error || "Failed to fetch video details",
-      invalidKey: videosResponse.invalidKey,
-      quotaExceeded: videosResponse.quotaExceeded,
-      keyUsed: videosResponse.keyUsed || searchResponse.keyUsed,
-    };
-  }
-
-  // Check if the response has items
-  if (!videosResponse.data.items || !Array.isArray(videosResponse.data.items)) {
-    return {
-      success: true,
-      videos: [],
-      keyUsed: videosResponse.keyUsed,
-    };
-  }
-
-  // Filter out shorts (duration < 60 seconds)
-  const longFormVideos = videosResponse.data.items.filter((video: any) => {
-    try {
-      if (!video || !video.contentDetails || !video.contentDetails.duration) {
-        return false;
-      }
-      const duration = parseDuration(video.contentDetails.duration);
-      return duration >= 60; // 60 seconds or longer
-    } catch (error) {
-      console.error(`Error parsing duration for video:`, error);
-      return false;
+    // Add page token if we have one from a previous request
+    if (nextPageToken) {
+      searchParams.pageToken = nextPageToken;
     }
-  });
+
+    const searchResponse = await makeYoutubeApiRequest(
+      searchEndpoint,
+      searchParams
+    );
+
+    if (!searchResponse.success) {
+      return {
+        success: false,
+        error: searchResponse.error || "Failed to search for videos",
+        invalidKey: searchResponse.invalidKey,
+        quotaExceeded: searchResponse.quotaExceeded,
+        keyUsed: searchResponse.keyUsed,
+      };
+    }
+
+    // Check if the response has items
+    if (
+      !searchResponse.data.items ||
+      !Array.isArray(searchResponse.data.items) ||
+      searchResponse.data.items.length === 0
+    ) {
+      // No more videos found
+      break;
+    }
+
+    // Get the next page token if any
+    nextPageToken = searchResponse.data.nextPageToken;
+
+    // Extract video IDs and collect them
+    const videoIds = searchResponse.data.items
+      .filter((item: any) => item && item.id && item.id.videoId)
+      .map((item: any) => item.id.videoId);
+
+    if (videoIds.length === 0) {
+      break;
+    }
+
+    console.log(
+      `Found ${videoIds.length} videos on page ${attempts} for channel ${channelId}`
+    );
+
+    // Create a map to store the original channel IDs for each video
+    // This is crucial to ensure we only include videos from the requested channel
+    const videoChannelMap: Record<string, string> = {};
+    searchResponse.data.items.forEach((item: any) => {
+      if (
+        item &&
+        item.id &&
+        item.id.videoId &&
+        item.snippet &&
+        item.snippet.channelId
+      ) {
+        videoChannelMap[item.id.videoId] = item.snippet.channelId;
+      }
+    });
+
+    // Fetch detailed info for these videos
+    const videosEndpoint = "https://www.googleapis.com/youtube/v3/videos";
+    const videosParams = {
+      part: "snippet,contentDetails,statistics",
+      id: videoIds.join(","),
+    };
+
+    const videosResponse = await makeYoutubeApiRequest(
+      videosEndpoint,
+      videosParams
+    );
+
+    if (!videosResponse.success) {
+      return {
+        success: false,
+        error: videosResponse.error || "Failed to fetch video details",
+        invalidKey: videosResponse.invalidKey,
+        quotaExceeded: videosResponse.quotaExceeded,
+        keyUsed: videosResponse.keyUsed || searchResponse.keyUsed,
+      };
+    }
+
+    // Check if the response has items
+    if (
+      !videosResponse.data.items ||
+      !Array.isArray(videosResponse.data.items)
+    ) {
+      break;
+    }
+
+    // Process all videos and add isShort flag based on duration
+    // IMPORTANT: Filter to only include videos that actually belong to the requested channel
+    const processedVideos = videosResponse.data.items
+      .filter((video: any) => {
+        // Verify this video belongs to the requested channel using our map
+        const videoId = video.id;
+        return videoChannelMap[videoId] === channelId;
+      })
+      .map((video: any) => {
+        try {
+          if (video && video.contentDetails && video.contentDetails.duration) {
+            const duration = parseDuration(video.contentDetails.duration);
+            // Mark videos under 180 seconds as shorts
+            video.isShort = duration < 180;
+          } else {
+            video.isShort = false;
+          }
+          return video;
+        } catch (error) {
+          console.error(`Error processing video:`, error);
+          video.isShort = false;
+          return video;
+        }
+      });
+
+    // Log any discarded videos (videos that don't belong to the channel)
+    const originalCount = videosResponse.data.items.length;
+    const filteredCount = processedVideos.length;
+    if (originalCount > filteredCount) {
+      console.log(
+        `Filtered out ${
+          originalCount - filteredCount
+        } videos that didn't match channel ${channelId}`
+      );
+    }
+
+    // Add videos to our collection
+    allVideos = [...allVideos, ...processedVideos];
+
+    // Continue fetching next pages if we have a token and haven't hit our attempt limit
+    // For manual refreshes, we'll try to get more pages
+  } while (nextPageToken && attempts < maxAttempts);
+
+  console.log(
+    `Total videos fetched for channel ${channelId}: ${allVideos.length}`
+  );
 
   return {
     success: true,
-    videos: longFormVideos,
-    keyUsed: videosResponse.keyUsed,
+    videos: allVideos,
+    keyUsed: "multiple", // We might have used multiple keys across pages
   };
 };
 
 // Parse ISO 8601 duration format to seconds
-function parseDuration(duration: string): number {
+export function parseDuration(duration: string): number {
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
 
@@ -436,6 +500,10 @@ export const updateVideoStatistics = async (
           continue;
         }
 
+        const duration = video.contentDetails?.duration
+          ? parseDuration(video.contentDetails.duration)
+          : 0;
+
         await prisma.video_statistics.update({
           where: { id: video.id },
           data: {
@@ -443,9 +511,8 @@ export const updateVideoStatistics = async (
             like_count: parseInt(video.statistics.likeCount) || 0,
             comment_count: parseInt(video.statistics.commentCount) || 0,
             title: video.snippet?.title,
-            duration: video.contentDetails?.duration
-              ? parseDuration(video.contentDetails.duration)
-              : undefined,
+            duration: duration,
+            isShort: duration < 180, // Mark videos under 180 seconds as shorts
           },
         });
         updatedVideos++;
@@ -463,4 +530,251 @@ export const updateVideoStatistics = async (
     videosUpdated: updatedVideos,
     keyUsed: lastKeyUsed,
   };
+};
+
+// Function to fetch older videos directly from channel uploads playlist
+// This bypasses the search API's time limitations (which only go back ~3 months)
+export const fetchChannelVideosFromPlaylist = async (
+  channelId: string,
+  afterDate: Date,
+  maxResults: number = 50
+): Promise<YouTubeApiResponse & { videos?: any[] }> => {
+  try {
+    console.log(`Fetching channel upload playlist for ${channelId}`);
+
+    // Step 1: Get the channel's uploads playlist ID
+    const channelsEndpoint = "https://www.googleapis.com/youtube/v3/channels";
+    const channelsParams = {
+      part: "contentDetails",
+      id: channelId,
+    };
+
+    const channelResponse = await makeYoutubeApiRequest(
+      channelsEndpoint,
+      channelsParams
+    );
+
+    if (!channelResponse.success || !channelResponse.data?.items?.length) {
+      return {
+        success: false,
+        error: "Could not find channel or uploads playlist",
+        keyUsed: channelResponse.keyUsed,
+      };
+    }
+
+    // Get the uploads playlist ID
+    const uploadsPlaylistId =
+      channelResponse.data.items[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsPlaylistId) {
+      return {
+        success: false,
+        error: "Could not find uploads playlist for channel",
+        keyUsed: channelResponse.keyUsed,
+      };
+    }
+
+    console.log(
+      `Found uploads playlist ${uploadsPlaylistId} for channel ${channelId}`
+    );
+
+    // Step 2: Get videos from the uploads playlist with pagination
+    const playlistItemsEndpoint =
+      "https://www.googleapis.com/youtube/v3/playlistItems";
+
+    let allPlaylistItems: any[] = [];
+    let nextPageToken: string | null = null;
+    let pageCount = 0;
+    const maxPages = 5; // Maximum number of pages to fetch (up to 250 videos)
+    const afterTimestamp = afterDate.getTime();
+
+    // Fetch playlist items with pagination
+    do {
+      pageCount++;
+      const playlistItemsParams: Record<string, string> = {
+        part: "snippet,contentDetails",
+        playlistId: uploadsPlaylistId,
+        maxResults: "50", // Get 50 per page (maximum allowed)
+      };
+
+      if (nextPageToken) {
+        playlistItemsParams.pageToken = nextPageToken;
+      }
+
+      const playlistResponse = await makeYoutubeApiRequest(
+        playlistItemsEndpoint,
+        playlistItemsParams
+      );
+
+      if (!playlistResponse.success || !playlistResponse.data?.items?.length) {
+        break; // No more items or error
+      }
+
+      // Save the next page token for the next iteration
+      nextPageToken = playlistResponse.data.nextPageToken || null;
+
+      // Process current page of items
+      const items = playlistResponse.data.items;
+      allPlaylistItems = [...allPlaylistItems, ...items];
+
+      // Check if we should stop based on dates
+      // If the last item in this batch is older than our cutoff date, we can stop paginating
+      try {
+        const oldestItemInBatch = items[items.length - 1];
+        const oldestPublishDate = new Date(
+          oldestItemInBatch.snippet.publishedAt
+        ).getTime();
+
+        // If we've reached items older than our cutoff date, we can stop
+        if (oldestPublishDate < afterTimestamp) {
+          console.log(
+            `Reached videos older than ${afterDate.toISOString()}, stopping pagination`
+          );
+          break;
+        }
+      } catch (error) {
+        console.warn("Error checking dates for pagination control:", error);
+      }
+
+      // Stop if we've fetched the maximum number of pages
+      if (pageCount >= maxPages) {
+        console.log(
+          `Reached maximum page count (${maxPages}), stopping pagination`
+        );
+        break;
+      }
+    } while (nextPageToken);
+
+    console.log(
+      `Fetched ${allPlaylistItems.length} playlist items across ${pageCount} pages`
+    );
+
+    // Extract and filter video IDs by date
+    const videoIds: string[] = [];
+    // Also create a map to verify channel ownership
+    const videoChannelMap: Record<string, string> = {};
+
+    for (const item of allPlaylistItems) {
+      try {
+        const publishedAt = new Date(item.snippet.publishedAt).getTime();
+        if (publishedAt >= afterTimestamp) {
+          videoIds.push(item.contentDetails.videoId);
+          // Store the channel ID for verification later
+          if (item.snippet.channelId) {
+            videoChannelMap[item.contentDetails.videoId] =
+              item.snippet.channelId;
+          }
+        }
+      } catch (error) {
+        console.warn(`Error processing playlist item: ${error}`);
+      }
+    }
+
+    if (videoIds.length === 0) {
+      return {
+        success: true,
+        videos: [],
+        keyUsed: "multiple", // We might have used multiple keys
+      };
+    }
+
+    console.log(
+      `Found ${
+        videoIds.length
+      } videos in uploads playlist after ${afterDate.toISOString()}`
+    );
+
+    // Step 3: Fetch full video details for all video IDs
+    const videosEndpoint = "https://www.googleapis.com/youtube/v3/videos";
+    const chunks: string[][] = [];
+
+    // Split video IDs into chunks of 50 (YouTube API limit)
+    for (let i = 0; i < videoIds.length; i += 50) {
+      chunks.push(videoIds.slice(i, i + 50));
+    }
+
+    let allVideos: any[] = [];
+
+    // Fetch video details for each chunk
+    for (const chunk of chunks) {
+      const videosParams = {
+        part: "snippet,contentDetails,statistics",
+        id: chunk.join(","),
+      };
+
+      const videosResponse = await makeYoutubeApiRequest(
+        videosEndpoint,
+        videosParams
+      );
+
+      if (!videosResponse.success || !videosResponse.data?.items) {
+        console.warn("Failed to get video details for some videos");
+        continue;
+      }
+
+      // Process videos and add isShort flag, but filter out any videos that don't belong to this channel
+      const processedVideos = videosResponse.data.items
+        .filter((video: any) => {
+          // Verify this video belongs to the requested channel
+          // First check our map, then fall back to the video's own snippet
+          const videoId = video.id;
+          return (
+            (videoChannelMap[videoId] &&
+              videoChannelMap[videoId] === channelId) ||
+            (video.snippet && video.snippet.channelId === channelId)
+          );
+        })
+        .map((video: any) => {
+          try {
+            if (
+              video &&
+              video.contentDetails &&
+              video.contentDetails.duration
+            ) {
+              const duration = parseDuration(video.contentDetails.duration);
+              video.isShort = duration < 180; // Mark videos under 180 seconds as shorts
+            } else {
+              video.isShort = false;
+            }
+            return video;
+          } catch (error) {
+            console.error(`Error processing video:`, error);
+            video.isShort = false;
+            return video;
+          }
+        });
+
+      // Log any discarded videos
+      const originalCount = videosResponse.data.items.length;
+      const filteredCount = processedVideos.length;
+      if (originalCount > filteredCount) {
+        console.log(
+          `Filtered out ${
+            originalCount - filteredCount
+          } videos that didn't match channel ${channelId} from playlist`
+        );
+      }
+
+      allVideos = [...allVideos, ...processedVideos];
+    }
+
+    // Sort videos by publish date (newest first)
+    allVideos.sort((a, b) => {
+      const dateA = new Date(a.snippet.publishedAt).getTime();
+      const dateB = new Date(b.snippet.publishedAt).getTime();
+      return dateB - dateA;
+    });
+
+    return {
+      success: true,
+      videos: allVideos,
+      keyUsed: "multiple", // We've likely used multiple keys
+    };
+  } catch (error) {
+    console.error("Error fetching channel videos from playlist:", error);
+    return {
+      success: false,
+      error: "Failed to fetch videos from channel uploads playlist",
+      exception: error,
+    };
+  }
 };

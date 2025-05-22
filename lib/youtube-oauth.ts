@@ -169,10 +169,16 @@ export const fetchVideosWithOAuth = async (
       };
     }
 
-    // Get video IDs
-    const videoIds = searchResponse.data.items
-      .filter((item) => item.id?.videoId)
-      .map((item) => item.id!.videoId!);
+    // Get video IDs and create a map to verify channel ownership
+    const videoIds: string[] = [];
+    const videoChannelMap: Record<string, string> = {};
+
+    searchResponse.data.items.forEach((item) => {
+      if (item.id?.videoId && item.snippet?.channelId) {
+        videoIds.push(item.id.videoId);
+        videoChannelMap[item.id.videoId] = item.snippet.channelId;
+      }
+    });
 
     if (videoIds.length === 0) {
       return {
@@ -196,20 +202,48 @@ export const fetchVideosWithOAuth = async (
       };
     }
 
-    // Filter out shorts
-    const longFormVideos = videosResponse.data.items.filter((video) => {
+    // Process videos and filter by channel ID
+    const originalCount = videosResponse.data.items.length;
+    const filteredVideos = videosResponse.data.items.filter((video) => {
       try {
+        // First verify this video belongs to the requested channel
+        const videoId = video.id;
+        // Only check if videoId exists and is a string
+        if (!videoId || typeof videoId !== "string") return false;
+
+        const belongsToChannel =
+          videoChannelMap[videoId] === channelId ||
+          video.snippet?.channelId === channelId;
+
+        if (!belongsToChannel) {
+          return false;
+        }
+
+        // Then check if it's a short or long video
         if (!video.contentDetails?.duration) return false;
         const duration = parseDuration(video.contentDetails.duration);
-        return duration >= 60; // 60 seconds or longer
+
+        // Add isShort flag to the video object as a custom property
+        (video as any).isShort = duration < 180;
+
+        return true;
       } catch (error) {
         return false;
       }
     });
 
+    // Log if we filtered out any videos that didn't belong to the channel
+    if (originalCount > filteredVideos.length) {
+      console.log(
+        `OAuth: Filtered out ${
+          originalCount - filteredVideos.length
+        } videos that didn't match channel ${channelId}`
+      );
+    }
+
     return {
       success: true,
-      videos: longFormVideos,
+      videos: filteredVideos,
       keyUsed: "oauth",
     };
   } catch (error: any) {

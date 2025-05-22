@@ -24,6 +24,7 @@ model video_statistics {
   thumbnail     String?  @db.VarChar(255)
   title         String?  @db.VarChar(255)
   duration      Int?
+  isShort       Boolean  @default(false)
 }
 
 model auth_tokens {

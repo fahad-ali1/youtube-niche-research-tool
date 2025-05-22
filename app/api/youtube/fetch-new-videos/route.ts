@@ -1,5 +1,8 @@
 import { PrismaClient } from "@/lib/generated/prisma";
-import { fetchCompetitorVideos } from "@/lib/youtube-api";
+import {
+  fetchChannelVideosFromPlaylist,
+  fetchCompetitorVideos,
+} from "@/lib/youtube-api";
 import { fetchVideosWithOAuth, getStoredTokens } from "@/lib/youtube-oauth";
 import { NextResponse } from "next/server";
 
@@ -30,6 +33,9 @@ export async function POST(request: Request) {
     }
 
     console.log(`Using time period: ${requestBody.timePeriod} months`);
+
+    // Flag to indicate this is a manual fetch (from control panel) vs. automated
+    const isManualFetch = true;
 
     // Fetch all competitors from the database
     const competitors = await prisma.competitors.findMany();
@@ -106,8 +112,19 @@ export async function POST(request: Request) {
             );
             // Use time period ago instead
             searchAfterDate = timePeriodDate;
+          } else if (isManualFetch) {
+            // For manual fetches, always use the requested time period
+            // This ensures we get all videos within the requested time range
+            searchAfterDate = timePeriodDate;
+            console.log(
+              `Manual fetch: Using requested ${
+                requestBody.timePeriod
+              } month period: ${searchAfterDate.toISOString()} for channel ${
+                competitor.id
+              }`
+            );
           } else {
-            // Use the maximum of the latest video date or the time period date
+            // For automated fetches, use the max to avoid duplicate fetching
             // This ensures we don't miss videos but also respect the user's time period selection
             searchAfterDate =
               latestVideoDate > timePeriodDate
@@ -140,24 +157,72 @@ export async function POST(request: Request) {
         // Fetch videos for this channel
         let result: YouTubeApiResponse;
 
-        // If OAuth is available and its quota hasn't been exceeded, try OAuth first
-        if (useOAuth && !oauthQuotaExceeded) {
-          result = await fetchVideosWithOAuth(competitor.id, searchAfterDate);
+        // For manual fetches with a long time period, use the channel uploads playlist to get older videos
+        if (isManualFetch && requestBody.timePeriod > 3) {
+          console.log(
+            `Using channel uploads playlist to get videos older than 3 months for channel ${competitor.id}`
+          );
 
-          // If OAuth quota exceeded, mark it so we don't try again and fall back to API keys
-          if (!result.success && result.quotaExceeded) {
-            console.log(
-              "OAuth quota exceeded, falling back to API key authentication"
-            );
-            oauthQuotaExceeded = true;
+          // Try to fetch up to 100 videos for each channel
+          result = await fetchChannelVideosFromPlaylist(
+            competitor.id,
+            searchAfterDate,
+            100
+          );
+        }
+        // Otherwise use regular search methods (which only go back ~3 months)
+        else {
+          // If OAuth is available and its quota hasn't been exceeded, try OAuth first
+          if (useOAuth && !oauthQuotaExceeded) {
+            result = await fetchVideosWithOAuth(competitor.id, searchAfterDate);
+
+            // If OAuth quota exceeded, mark it so we don't try again and fall back to API keys
+            if (!result.success && result.quotaExceeded) {
+              console.log(
+                "OAuth quota exceeded, falling back to API key authentication"
+              );
+              oauthQuotaExceeded = true;
+              result = await fetchCompetitorVideos(
+                competitor.id,
+                searchAfterDate,
+                isManualFetch
+              );
+            }
+          } else {
+            // Use API key authentication
             result = await fetchCompetitorVideos(
               competitor.id,
-              searchAfterDate
+              searchAfterDate,
+              isManualFetch
             );
           }
-        } else {
-          // Use API key authentication
-          result = await fetchCompetitorVideos(competitor.id, searchAfterDate);
+        }
+
+        // If result is unsuccessful and it's a manual fetch with a time period > 3 months,
+        // try the normal search method as a fallback
+        if (!result.success && isManualFetch && requestBody.timePeriod > 3) {
+          console.log(
+            `Uploads playlist method failed, falling back to search API for channel ${competitor.id}`
+          );
+
+          if (useOAuth && !oauthQuotaExceeded) {
+            result = await fetchVideosWithOAuth(competitor.id, searchAfterDate);
+
+            if (!result.success && result.quotaExceeded) {
+              oauthQuotaExceeded = true;
+              result = await fetchCompetitorVideos(
+                competitor.id,
+                searchAfterDate,
+                isManualFetch
+              );
+            }
+          } else {
+            result = await fetchCompetitorVideos(
+              competitor.id,
+              searchAfterDate,
+              isManualFetch
+            );
+          }
         }
 
         // If API key failed but we have OAuth available and OAuth quota isn't exceeded, try OAuth as fallback
@@ -250,7 +315,47 @@ export async function POST(request: Request) {
             });
 
             if (existingVideo) {
-              console.log(`Video ${video.id} already exists, skipping`);
+              if (isManualFetch) {
+                // For manual fetches, update existing videos with the latest stats
+                console.log(
+                  `Updating existing video ${video.id} (manual fetch)`
+                );
+
+                let duration = 0;
+                if (video.contentDetails?.duration) {
+                  duration = parseDuration(video.contentDetails.duration);
+                } else if (existingVideo.duration) {
+                  duration = existingVideo.duration;
+                }
+
+                await prisma.video_statistics.update({
+                  where: { id: video.id },
+                  data: {
+                    view_count: parseInt(
+                      video.statistics?.viewCount ||
+                        video.statistics.viewCount ||
+                        "0"
+                    ),
+                    like_count: parseInt(
+                      video.statistics?.likeCount ||
+                        video.statistics.likeCount ||
+                        "0"
+                    ),
+                    comment_count: parseInt(
+                      video.statistics?.commentCount ||
+                        video.statistics.commentCount ||
+                        "0"
+                    ),
+                    title: video.snippet?.title || video.snippet.title,
+                    duration: duration,
+                    isShort: duration < 180,
+                  },
+                });
+
+                totalVideosAdded++; // Count updates as "added" for reporting
+              } else {
+                console.log(`Video ${video.id} already exists, skipping`);
+              }
               continue;
             }
 
@@ -258,6 +363,12 @@ export async function POST(request: Request) {
             let videoData;
             if (result.keyUsed === "oauth") {
               // OAuth response structure
+              const duration = parseInt(
+                parseDuration(
+                  video.contentDetails?.duration || "PT0S"
+                ).toString()
+              );
+
               videoData = {
                 id: video.id,
                 channel_id: competitor.id,
@@ -269,14 +380,15 @@ export async function POST(request: Request) {
                 thumbnail:
                   video.snippet?.thumbnails?.high?.url ||
                   video.snippet?.thumbnails?.default?.url,
-                duration: parseInt(
-                  parseDuration(
-                    video.contentDetails?.duration || "PT0S"
-                  ).toString()
-                ),
+                duration: duration,
+                isShort: duration < 180, // Mark videos under 180 seconds as shorts
               };
             } else {
               // API key response structure (original format)
+              const duration = parseInt(
+                parseDuration(video.contentDetails.duration).toString()
+              );
+
               videoData = {
                 id: video.id,
                 channel_id: competitor.id,
@@ -288,9 +400,8 @@ export async function POST(request: Request) {
                 thumbnail:
                   video.snippet.thumbnails.high?.url ||
                   video.snippet.thumbnails.default?.url,
-                duration: parseInt(
-                  parseDuration(video.contentDetails.duration).toString()
-                ),
+                duration: duration,
+                isShort: duration < 180, // Mark videos under 180 seconds as shorts
               };
             }
 
