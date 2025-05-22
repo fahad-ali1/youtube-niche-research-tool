@@ -18,7 +18,8 @@ import {
   Loader2,
   DownloadCloud,
   Trash2,
-  Settings
+  Settings,
+  Clock
 } from "lucide-react";
 import {
   Select,
@@ -342,6 +343,16 @@ export default function Home() {
                 )}
                 {isCacheWiping ? "Wiping..." : "Wipe Cache"}
               </Button>
+              <Link href="/metrics">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
+                >
+                  <Clock className="h-4 w-4" />
+                  Metrics
+                </Button>
+              </Link>
               <Link href="/control">
                 <Button
                   variant="outline"

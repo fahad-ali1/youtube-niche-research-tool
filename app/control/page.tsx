@@ -1,30 +1,56 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Competitor, VideoStatistics } from '@/types';
-import { toast } from 'react-hot-toast';
-import { Trash2, ArrowLeft, ExternalLink, DownloadCloud, Loader2, Pencil, Check, X } from 'lucide-react';
-import Link from 'next/link';
-import { format } from 'date-fns';
+import DatabaseManagementPanel from "@/app/components/DatabaseManagementPanel";
+import YouTubeAuthButton from "@/app/components/YouTubeAuthButton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Competitor, VideoStatistics } from "@/types";
+import { format } from "date-fns";
+import {
+  ArrowLeft,
+  Calendar,
+  Check,
+  DownloadCloud,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 export default function ControlPanel() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ id: '', url: '', title: '' });
+  const [formData, setFormData] = useState({ id: "", url: "", title: "" });
   const [submitting, setSubmitting] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [channelVideos, setChannelVideos] = useState<VideoStatistics[]>([]);
   const [channelStatsLoading, setChannelStatsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [competitorStats, setCompetitorStats] = useState<Record<string, number>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [competitorStats, setCompetitorStats] = useState<
+    Record<string, number>
+  >({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCacheWiping, setIsCacheWiping] = useState(false);
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState({ id: '', url: '', title: '' });
+  const [editFormData, setEditFormData] = useState({
+    id: "",
+    url: "",
+    title: "",
+  });
   const [isSaving, setIsSaving] = useState(false);
+  const [timePeriod, setTimePeriod] = useState("3"); // Default to 3 months
 
   // Fetch competitors on mount
   useEffect(() => {
@@ -40,23 +66,28 @@ export default function ControlPanel() {
   // Handle updating videos from the backend
   const handleUpdateVideos = async () => {
     setIsUpdating(true);
-    
+
     try {
-      const response = await fetch('/api/fetch-videos', {
-        method: 'POST',
+      const response = await fetch("/api/fetch-videos", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          timePeriod: parseInt(timePeriod),
+        }),
       });
       const data = await response.json();
-      
+
       if (data.timedOut) {
         // Show timeout message
-        toast.success(data.message || "Workflow is updating! Refresh in a few minutes");
+        toast.success(
+          data.message || "Workflow is updating! Refresh in a few minutes"
+        );
         setIsUpdating(false);
         return;
       }
-      
+
       if (data.success) {
         toast.success("Videos updated successfully");
         // Refresh the competitors stats
@@ -75,7 +106,7 @@ export default function ControlPanel() {
       setIsUpdating(false);
     }
   };
-  
+
   // Handle wiping the cache
   const handleWipeCache = async () => {
     try {
@@ -104,16 +135,52 @@ export default function ControlPanel() {
     }
   };
 
+  // Handle direct fetch of new videos (bypassing the webhook)
+  const handleDirectFetch = async () => {
+    setIsUpdating(true);
+
+    try {
+      const response = await fetch("/api/youtube/fetch-new-videos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          timePeriod: parseInt(timePeriod),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`Added ${data.videosAdded} new videos`);
+        // Refresh the competitors stats
+        await fetchCompetitors();
+        if (selectedChannel) {
+          await handleChannelClick(selectedChannel);
+        }
+      } else {
+        toast.error(data.error || "Failed to fetch new videos");
+        console.error("Failed to fetch new videos:", data);
+      }
+    } catch (error) {
+      console.error("Error fetching new videos:", error);
+      toast.error("Error fetching new videos");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const fetchCompetitors = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/competitors');
-      if (!response.ok) throw new Error('Failed to fetch competitors');
+      const response = await fetch("/api/competitors");
+      if (!response.ok) throw new Error("Failed to fetch competitors");
       const data = await response.json();
       setCompetitors(data);
     } catch (error) {
-      console.error('Error fetching competitors:', error);
-      toast.error('Failed to load competitors');
+      console.error("Error fetching competitors:", error);
+      toast.error("Failed to load competitors");
     } finally {
       setLoading(false);
     }
@@ -122,13 +189,13 @@ export default function ControlPanel() {
   const fetchCompetitorStats = async () => {
     try {
       // Fetch all channel stats in a single API call
-      const response = await fetch('/api/channels/stats');
-      if (!response.ok) throw new Error('Failed to fetch channel statistics');
-      
+      const response = await fetch("/api/channels/stats");
+      if (!response.ok) throw new Error("Failed to fetch channel statistics");
+
       const statsMap = await response.json();
       setCompetitorStats(statsMap);
     } catch (error) {
-      console.error('Error fetching competitor stats:', error);
+      console.error("Error fetching competitor stats:", error);
     }
   };
 
@@ -149,31 +216,33 @@ export default function ControlPanel() {
     try {
       // Validate form data
       if (!formData.id.trim() || !formData.url.trim()) {
-        toast.error('Channel ID and URL are required');
+        toast.error("Channel ID and URL are required");
         return;
       }
 
       // Add channel
-      const response = await fetch('/api/competitors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/competitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to add channel');
+        throw new Error(error.message || "Failed to add channel");
       }
 
       // Refresh the competitors list
       await fetchCompetitors();
-      
+
       // Reset form
-      setFormData({ id: '', url: '', title: '' });
-      toast.success('Channel added successfully');
+      setFormData({ id: "", url: "", title: "" });
+      toast.success("Channel added successfully");
     } catch (error) {
-      console.error('Error adding channel:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to add channel');
+      console.error("Error adding channel:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to add channel"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -186,25 +255,25 @@ export default function ControlPanel() {
 
     try {
       const response = await fetch(`/api/competitors/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete channel');
+        throw new Error("Failed to delete channel");
       }
 
       // Refresh the competitors list
       await fetchCompetitors();
-      toast.success('Channel deleted successfully');
-      
+      toast.success("Channel deleted successfully");
+
       // If the deleted channel was selected, clear the selection
       if (selectedChannel === id) {
         setSelectedChannel(null);
         setChannelVideos([]);
       }
     } catch (error) {
-      console.error('Error deleting channel:', error);
-      toast.error('Failed to delete channel');
+      console.error("Error deleting channel:", error);
+      toast.error("Failed to delete channel");
     }
   };
 
@@ -215,34 +284,36 @@ export default function ControlPanel() {
 
     try {
       const response = await fetch(`/api/channels/${channelId}/stats`);
-      if (!response.ok) throw new Error('Failed to fetch channel stats');
-      
-      
+      if (!response.ok) throw new Error("Failed to fetch channel stats");
+
       const data = await response.json();
 
       console.log(data);
 
       setChannelVideos(data.videos);
     } catch (error) {
-      console.error('Error fetching channel stats:', error);
-      toast.error('Failed to load channel statistics');
+      console.error("Error fetching channel stats:", error);
+      toast.error("Failed to load channel statistics");
     } finally {
       setChannelStatsLoading(false);
     }
   };
 
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
+    return new Intl.NumberFormat("en-US").format(num);
   };
 
   const calculateAverageViews = (videos: VideoStatistics[]) => {
-    const videosWithViews = videos.filter(video => video.view_count > 0);
+    const videosWithViews = videos.filter((video) => video.view_count > 0);
     if (videosWithViews.length === 0) return 0;
-    const totalViews = videosWithViews.reduce((sum, video) => sum + video.view_count, 0);
+    const totalViews = videosWithViews.reduce(
+      (sum, video) => sum + video.view_count,
+      0
+    );
     return totalViews / videosWithViews.length;
   };
 
-  const selectedCompetitor = competitors.find(c => c.id === selectedChannel);
+  const selectedCompetitor = competitors.find((c) => c.id === selectedChannel);
 
   // Sort competitors: channels without titles first, then alphabetically by title
   const sortedCompetitors = [...competitors].sort((a, b) => {
@@ -258,25 +329,28 @@ export default function ControlPanel() {
     return a.title.localeCompare(b.title);
   });
 
-  const filteredCompetitors = searchQuery.trim() === '' 
-    ? sortedCompetitors 
-    : sortedCompetitors.filter(comp => 
-        (comp.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-        comp.id.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const filteredCompetitors =
+    searchQuery.trim() === ""
+      ? sortedCompetitors
+      : sortedCompetitors.filter(
+          (comp) =>
+            (comp.title?.toLowerCase() || "").includes(
+              searchQuery.toLowerCase()
+            ) || comp.id.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
   const handleEditChannel = (competitor: Competitor) => {
     setEditingChannelId(competitor.id);
     setEditFormData({
       id: competitor.id,
       url: competitor.url,
-      title: competitor.title || '',
+      title: competitor.title || "",
     });
   };
 
   const handleCancelEdit = () => {
     setEditingChannelId(null);
-    setEditFormData({ id: '', url: '', title: '' });
+    setEditFormData({ id: "", url: "", title: "" });
   };
 
   const handleUpdateChannel = async (e: React.FormEvent) => {
@@ -286,33 +360,35 @@ export default function ControlPanel() {
     try {
       // Validate form data
       if (!editFormData.id.trim() || !editFormData.url.trim()) {
-        toast.error('Channel ID and URL are required');
+        toast.error("Channel ID and URL are required");
         setIsSaving(false);
         return;
       }
 
       // Update channel
       const response = await fetch(`/api/competitors/${editFormData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editFormData),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to update channel');
+        throw new Error(error.message || "Failed to update channel");
       }
 
       // Refresh the competitors list
       await fetchCompetitors();
-      
+
       // Reset form
       setEditingChannelId(null);
-      setEditFormData({ id: '', url: '', title: '' });
-      toast.success('Channel updated successfully');
+      setEditFormData({ id: "", url: "", title: "" });
+      toast.success("Channel updated successfully");
     } catch (error) {
-      console.error('Error updating channel:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update channel');
+      console.error("Error updating channel:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update channel"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -325,29 +401,20 @@ export default function ControlPanel() {
           <div className="bg-black text-white border-4 border-black rounded-lg p-6 mb-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex items-center justify-between flex-1">
-                <h1 className="text-3xl md:text-2xl font-bold text-center text-white">Control Panel</h1>
+                <h1 className="text-3xl md:text-2xl font-bold text-center text-white">
+                  Control Panel
+                </h1>
                 <Link href="/">
-                  <Button variant="outline" className="border-2 border-white text-black hover:bg-gray-200 cursor-pointer">
+                  <Button
+                    variant="outline"
+                    className="border-2 border-white text-black hover:bg-gray-200 cursor-pointer"
+                  >
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
                   </Button>
                 </Link>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  disabled={isUpdating}
-                  onClick={handleUpdateVideos}
-                  className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1"
-                >
-                  {isUpdating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <DownloadCloud className="h-4 w-4" />
-                  )}
-                  {isUpdating ? "Updating..." : "Update"}
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -367,6 +434,67 @@ export default function ControlPanel() {
           </div>
         </header>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Database Management Panel */}
+          <DatabaseManagementPanel />
+
+          {/* YouTube Authentication */}
+          <YouTubeAuthButton />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Video Fetching Controls */}
+          <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <h2 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h2>
+            <p className="text-gray-600 mb-4">
+              Fetch new videos from all your competitor channels to update your
+              dashboard statistics.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="flex items-center gap-2 bg-blue-50 p-3 border-2 border-blue-200 rounded-lg">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                <div>
+                  <p className="text-sm font-medium text-blue-700 mb-1">
+                    Time Period
+                  </p>
+                  <Select value={timePeriod} onValueChange={setTimePeriod}>
+                    <SelectTrigger className="w-[140px] border-blue-200 focus:ring-blue-500">
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Last 1 Month</SelectItem>
+                      <SelectItem value="3">Last 3 Months</SelectItem>
+                      <SelectItem value="6">Last 6 Months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                variant="default"
+                disabled={isUpdating}
+                onClick={handleDirectFetch}
+                className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 px-4 py-2 h-auto"
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <DownloadCloud className="h-5 w-5" />
+                )}
+                <div>
+                  <p className="font-medium">
+                    {isUpdating ? "Fetching..." : "Fetch Videos"}
+                  </p>
+                  <p className="text-xs text-blue-100">
+                    Using {timePeriod}-month period
+                  </p>
+                </div>
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Channel Management */}
           <div>
@@ -374,8 +502,10 @@ export default function ControlPanel() {
               <h2 className="text-2xl font-bold mb-4">Add New Channel</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="id" className="text-sm font-bold">Channel ID</Label>
-                  <Input 
+                  <Label htmlFor="id" className="text-sm font-bold">
+                    Channel ID
+                  </Label>
+                  <Input
                     id="id"
                     name="id"
                     value={formData.id}
@@ -385,10 +515,12 @@ export default function ControlPanel() {
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <Label htmlFor="url" className="text-sm font-bold">Channel URL</Label>
-                  <Input 
+                  <Label htmlFor="url" className="text-sm font-bold">
+                    Channel URL
+                  </Label>
+                  <Input
                     id="url"
                     name="url"
                     value={formData.url}
@@ -398,10 +530,12 @@ export default function ControlPanel() {
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <Label htmlFor="title" className="text-sm font-bold">Channel Title</Label>
-                  <Input 
+                  <Label htmlFor="title" className="text-sm font-bold">
+                    Channel Title
+                  </Label>
+                  <Input
                     id="title"
                     name="title"
                     value={formData.title}
@@ -410,20 +544,20 @@ export default function ControlPanel() {
                     placeholder="e.g. Channel Name"
                   />
                 </div>
-                
+
                 <Button
                   type="submit"
                   disabled={submitting}
                   className="bg-black text-white font-bold hover:bg-gray-800 w-full"
                 >
-                  {submitting ? 'Adding...' : 'Add Channel'}
+                  {submitting ? "Adding..." : "Add Channel"}
                 </Button>
               </form>
             </div>
 
             <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
               <h2 className="text-2xl font-bold mb-4">Competitors</h2>
-              
+
               {/* Search input */}
               <div className="mb-4">
                 <Input
@@ -433,7 +567,7 @@ export default function ControlPanel() {
                   className="border-2 border-black"
                 />
               </div>
-              
+
               {loading ? (
                 <p>Loading competitors...</p>
               ) : competitors.length === 0 ? (
@@ -442,19 +576,31 @@ export default function ControlPanel() {
                 <div className="h-[400px] overflow-y-auto border-2 border-black rounded-lg">
                   <ul className="space-y-2 p-2">
                     {filteredCompetitors.map((competitor) => (
-                      <li 
+                      <li
                         key={competitor.id}
                         className={`
                           p-4 border-2 border-black rounded-lg 
-                          ${selectedChannel === competitor.id ? 'bg-blue-50' : 'bg-white'}
+                          ${
+                            selectedChannel === competitor.id
+                              ? "bg-blue-50"
+                              : "bg-white"
+                          }
                           hover:bg-gray-50 cursor-pointer transition-colors
                         `}
                       >
                         {editingChannelId === competitor.id ? (
-                          <form onSubmit={handleUpdateChannel} className="space-y-2">
+                          <form
+                            onSubmit={handleUpdateChannel}
+                            className="space-y-2"
+                          >
                             <div>
-                              <Label htmlFor="edit-id" className="text-sm font-bold">Channel ID</Label>
-                              <Input 
+                              <Label
+                                htmlFor="edit-id"
+                                className="text-sm font-bold"
+                              >
+                                Channel ID
+                              </Label>
+                              <Input
                                 id="edit-id"
                                 name="id"
                                 value={editFormData.id}
@@ -463,10 +609,15 @@ export default function ControlPanel() {
                                 disabled
                               />
                             </div>
-                            
+
                             <div>
-                              <Label htmlFor="edit-url" className="text-sm font-bold">Channel URL</Label>
-                              <Input 
+                              <Label
+                                htmlFor="edit-url"
+                                className="text-sm font-bold"
+                              >
+                                Channel URL
+                              </Label>
+                              <Input
                                 id="edit-url"
                                 name="url"
                                 value={editFormData.url}
@@ -475,10 +626,15 @@ export default function ControlPanel() {
                                 required
                               />
                             </div>
-                            
+
                             <div>
-                              <Label htmlFor="edit-title" className="text-sm font-bold">Channel Title</Label>
-                              <Input 
+                              <Label
+                                htmlFor="edit-title"
+                                className="text-sm font-bold"
+                              >
+                                Channel Title
+                              </Label>
+                              <Input
                                 id="edit-title"
                                 name="title"
                                 value={editFormData.title}
@@ -486,7 +642,7 @@ export default function ControlPanel() {
                                 className="border-2 border-black mt-1"
                               />
                             </div>
-                            
+
                             <div className="flex gap-2 mt-2">
                               <Button
                                 type="submit"
@@ -494,7 +650,7 @@ export default function ControlPanel() {
                                 className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
                               >
                                 <Check size={16} />
-                                {isSaving ? 'Saving...' : 'Save'}
+                                {isSaving ? "Saving..." : "Save"}
                               </Button>
                               <Button
                                 type="button"
@@ -508,14 +664,18 @@ export default function ControlPanel() {
                           </form>
                         ) : (
                           <div className="flex justify-between items-start">
-                            <div 
-                              className="flex-grow" 
+                            <div
+                              className="flex-grow"
                               onClick={() => handleChannelClick(competitor.id)}
                             >
-                              <p className="font-bold">{competitor.title || competitor.id}</p>
+                              <p className="font-bold">
+                                {competitor.title || competitor.id}
+                              </p>
                               <div className="flex items-center text-sm text-gray-500">
-                                <span className="truncate">{competitor.url}</span>
-                                <a 
+                                <span className="truncate">
+                                  {competitor.url}
+                                </span>
+                                <a
                                   href={competitor.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -526,9 +686,9 @@ export default function ControlPanel() {
                                 </a>
                               </div>
                               <div className="mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full inline-block">
-                                {competitorStats[competitor.id] !== undefined 
-                                  ? `${competitorStats[competitor.id]} videos` 
-                                  : 'Update to get stats'}
+                                {competitorStats[competitor.id] !== undefined
+                                  ? `${competitorStats[competitor.id]} videos`
+                                  : "Update to get stats"}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -564,7 +724,7 @@ export default function ControlPanel() {
               )}
             </div>
           </div>
-          
+
           {/* Channel Statistics */}
           <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             {selectedChannel ? (
@@ -579,30 +739,56 @@ export default function ControlPanel() {
                 ) : channelVideos.length > 0 ? (
                   <div>
                     <div className="mb-6 p-4 bg-blue-50 border-2 border-black rounded-lg">
-                      <h3 className="text-lg font-bold mb-2">3-Month Average Calculation</h3>
-                      <p><strong>Total Videos:</strong> {channelVideos.length}</p>
-                      <p><strong>Videos with Views (used for average):</strong> {channelVideos.filter(v => v.view_count > 0).length}</p>
-                      <p><strong>Total Views:</strong> {formatNumber(channelVideos.filter(v => v.view_count > 0).reduce((sum, v) => sum + v.view_count, 0))}</p>
+                      <h3 className="text-lg font-bold mb-2">
+                        3-Month Average Calculation
+                      </h3>
+                      <p>
+                        <strong>Total Videos:</strong> {channelVideos.length}
+                      </p>
+                      <p>
+                        <strong>Videos with Views (used for average):</strong>{" "}
+                        {channelVideos.filter((v) => v.view_count > 0).length}
+                      </p>
+                      <p>
+                        <strong>Total Views:</strong>{" "}
+                        {formatNumber(
+                          channelVideos
+                            .filter((v) => v.view_count > 0)
+                            .reduce((sum, v) => sum + v.view_count, 0)
+                        )}
+                      </p>
                       <p className="text-xl mt-2">
-                        <strong>Average Views:</strong> {formatNumber(Math.round(calculateAverageViews(channelVideos)))}
+                        <strong>Average Views:</strong>{" "}
+                        {formatNumber(
+                          Math.round(calculateAverageViews(channelVideos))
+                        )}
                       </p>
                     </div>
-                    
+
                     <h3 className="text-lg font-bold mb-2">Video Breakdown</h3>
                     <div className="overflow-auto max-h-[600px] border-2 border-black rounded-lg">
                       <table className="min-w-full">
                         <thead className="bg-gray-100 sticky top-0">
                           <tr>
-                            <th className="px-4 py-2 text-left border-b-2 border-black">Video</th>
-                            <th className="px-4 py-2 text-right border-b-2 border-black">Views</th>
-                            <th className="px-4 py-2 text-right border-b-2 border-black">Published</th>
+                            <th className="px-4 py-2 text-left border-b-2 border-black">
+                              Video
+                            </th>
+                            <th className="px-4 py-2 text-right border-b-2 border-black">
+                              Views
+                            </th>
+                            <th className="px-4 py-2 text-right border-b-2 border-black">
+                              Published
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {channelVideos.map((video) => (
-                            <tr key={video.id} className="border-b border-gray-200 hover:bg-gray-50">
+                            <tr
+                              key={video.id}
+                              className="border-b border-gray-200 hover:bg-gray-50"
+                            >
                               <td className="px-4 py-3">
-                                <a 
+                                <a
                                   href={`https://www.youtube.com/watch?v=${video.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -612,9 +798,14 @@ export default function ControlPanel() {
                                   <ExternalLink size={14} className="ml-1" />
                                 </a>
                               </td>
-                              <td className="px-4 py-3 text-right">{formatNumber(video.view_count)}</td>
                               <td className="px-4 py-3 text-right">
-                                {format(new Date(video.publish_time), 'MMM d, yyyy')}
+                                {formatNumber(video.view_count)}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {format(
+                                  new Date(video.publish_time),
+                                  "MMM d, yyyy"
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -624,14 +815,20 @@ export default function ControlPanel() {
                   </div>
                 ) : (
                   <div className="h-64 flex items-center justify-center">
-                    <p className="text-gray-500">No videos found for this channel in the last 3 months</p>
+                    <p className="text-gray-500">
+                      No videos found for this channel in the last 3 months
+                    </p>
                   </div>
                 )}
               </>
             ) : (
               <div className="h-64 flex flex-col items-center justify-center">
-                <p className="text-xl text-gray-500 mb-2">Select a channel to view statistics</p>
-                <p className="text-gray-400">Click on a channel from the list to see its statistics</p>
+                <p className="text-xl text-gray-500 mb-2">
+                  Select a channel to view statistics
+                </p>
+                <p className="text-gray-400">
+                  Click on a channel from the list to see its statistics
+                </p>
               </div>
             )}
           </div>
@@ -639,4 +836,4 @@ export default function ControlPanel() {
       </div>
     </div>
   );
-} 
+}

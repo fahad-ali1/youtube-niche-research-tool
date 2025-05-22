@@ -69,6 +69,7 @@ yarn dev
 ## API Endpoints
 
 - **GET /api/videos**: Get videos with filtering, sorting, and pagination
+
   - Query parameters:
     - `channelId`: Filter by channel ID
     - `sortBy`: Sort by field (view_count, like_count, comment_count, publish_time)
@@ -83,3 +84,46 @@ yarn dev
 ## License
 
 MIT
+
+# YouTube Trends Finder Dashboard
+
+## Environment Variables Setup
+
+This application requires several environment variables to be set up in a `.env` file at the root of your project. Create this file and add the following variables:
+
+```
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/youtube_trends"
+
+# YouTube API Keys (multiple keys for quota rotation)
+YOUTUBE_API_KEY_1="your-youtube-api-key-1"
+YOUTUBE_API_KEY_2="your-youtube-api-key-2"
+YOUTUBE_API_KEY_3="your-youtube-api-key-3"
+
+# YouTube OAuth (if using authorized endpoints)
+YOUTUBE_CLIENT_ID="your-youtube-client-id"
+YOUTUBE_CLIENT_SECRET="your-youtube-client-secret"
+YOUTUBE_REDIRECT_URI="http://localhost:3000/api/auth/callback/youtube"
+```
+
+### API Key Rotation System
+
+The application automatically rotates between the three YouTube API keys when quota limits are reached. This maximizes the number of requests you can make to the YouTube API daily. You don't need to provide all three keys, but providing multiple keys is recommended.
+
+### Obtaining YouTube API Keys
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the YouTube Data API v3
+4. Create API keys from the Credentials page
+5. Copy the API keys to your `.env` file
+
+### Database Setup
+
+Make sure to update the `DATABASE_URL` with your PostgreSQL connection details. The format is:
+
+```
+postgresql://username:password@host:port/database_name
+```
+
+After setting up your environment variables, restart your development server for the changes to take effect.

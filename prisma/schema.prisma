@@ -9,8 +9,8 @@ datasource db {
 }
 
 model competitors {
-  id    String @id @db.VarChar(255)
-  url   String @db.VarChar(255)
+  id    String  @id @db.VarChar(255)
+  url   String  @db.VarChar(255)
   title String? @db.VarChar(255)
 }
 
@@ -23,4 +23,14 @@ model video_statistics {
   channel_id    String   @db.VarChar(255)
   thumbnail     String?  @db.VarChar(255)
   title         String?  @db.VarChar(255)
+  duration      Int?
+}
+
+model auth_tokens {
+  provider      String    @id
+  access_token  String    @db.Text
+  refresh_token String?   @db.Text
+  expiry_date   DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 }

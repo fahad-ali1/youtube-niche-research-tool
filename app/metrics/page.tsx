@@ -1,0 +1,274 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  BarChart3,
+  Calendar,
+  Loader2,
+  Clock,
+  RefreshCw
+} from "lucide-react";
+import { format, parseISO, subDays, startOfDay, endOfDay } from "date-fns";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "react-hot-toast";
+
+interface DailyMetricsData {
+  date: string;
+  contentMinutes: number;
+  videoCount: number;
+}
+
+export default function Metrics() {
+  const [metricsData, setMetricsData] = useState<DailyMetricsData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState("30");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchMetricsData(parseInt(timeRange));
+  }, [timeRange]);
+
+  const fetchMetricsData = async (days: number) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/metrics?days=${days}`);
+      if (!response.ok) throw new Error("Failed to fetch metrics data");
+      const data = await response.json();
+      setMetricsData(data);
+    } catch (error) {
+      console.error("Error fetching metrics data:", error);
+      toast.error("Failed to load metrics data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchMetricsData(parseInt(timeRange));
+    setIsRefreshing(false);
+  };
+
+  // Calculate summary statistics
+  const getTotalMinutes = () => {
+    return metricsData.reduce((sum, day) => sum + day.contentMinutes, 0);
+  };
+
+  const getTotalVideos = () => {
+    return metricsData.reduce((sum, day) => sum + day.videoCount, 0);
+  };
+
+  const getAverageMinutesPerDay = () => {
+    if (metricsData.length === 0) return 0;
+    return getTotalMinutes() / metricsData.length;
+  };
+
+  const formatMinutes = (minutes: number) => {
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const mins = Math.round(minutes % 60);
+      return `${hours}h ${mins}m`;
+    }
+    return `${Math.round(minutes)}m`;
+  };
+
+  // Custom tooltip for the chart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] rounded-md">
+          <p className="font-bold">{format(parseISO(label), "MMM d, yyyy")}</p>
+          <p className="text-[#587aff]">
+            <span className="font-medium">Content:</span> {formatMinutes(payload[0].value)}
+          </p>
+          <p className="text-gray-600">
+            <span className="font-medium">Videos:</span> {payload[1].value}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-2 md:p-4">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-4">
+          {/* Navbar */}
+          <div className="bg-white border-2 border-black rounded-lg p-2 mb-3 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] flex items-center justify-between">
+            <div className="flex items-center">
+              <BarChart3 className="h-6 w-6 text-[#587aff] mr-2" />
+              <h1 className="text-lg font-bold">Content Publishing Metrics</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
+              >
+                {isRefreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Refresh
+              </Button>
+              <Link href="/">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Dashboard
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Filters and controls */}
+          <div className="bg-white border-2 border-black rounded-lg p-3 mb-4 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)]">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-[#587aff]" />
+                <h2 className="font-semibold">Time Range:</h2>
+                <Select
+                  value={timeRange}
+                  onValueChange={setTimeRange}
+                >
+                  <SelectTrigger className="w-[180px] border border-gray-300">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="14">Last 14 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="60">Last 60 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex flex-wrap gap-4 md:gap-6">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-[#587aff]" />
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Total Content</p>
+                    <p className="font-bold text-lg">{formatMinutes(getTotalMinutes())}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-[#587aff]" />
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Videos Published</p>
+                    <p className="font-bold text-lg">{getTotalVideos()}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 flex items-center justify-center text-[#587aff]">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-xs">/d</span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Daily Average</p>
+                    <p className="font-bold text-lg">{formatMinutes(getAverageMinutesPerDay())}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main>
+          {isLoading ? (
+            <div className="bg-white border-2 border-black rounded-lg p-6 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] flex items-center justify-center" style={{ height: "400px" }}>
+              <div className="flex flex-col items-center">
+                <Loader2 className="h-12 w-12 animate-spin text-[#587aff] mb-3" />
+                <p className="text-sm text-gray-600">Loading metrics data...</p>
+              </div>
+            </div>
+          ) : metricsData.length > 0 ? (
+            <div className="bg-white border-2 border-black rounded-lg p-4 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)]">
+              <h2 className="text-xl font-bold mb-4">Daily Content Published (in minutes)</h2>
+              <div style={{ height: "400px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={metricsData}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(date) => format(parseISO(date), "MMM d")}
+                      stroke="#333"
+                    />
+                    <YAxis yAxisId="left" stroke="#587aff" />
+                    <YAxis yAxisId="right" orientation="right" stroke="#888" />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="contentMinutes"
+                      name="Content (minutes)"
+                      stroke="#587aff"
+                      fill="rgba(88, 122, 255, 0.2)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="videoCount"
+                      name="Videos"
+                      stroke="#888"
+                      fill="rgba(136, 136, 136, 0.1)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="mt-6 border-t pt-4 text-sm text-gray-500">
+                <p>* This chart shows the total minutes of content published each day. Only videos with duration information are included.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border-2 border-black rounded-lg p-8 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] text-center">
+              <h3 className="text-xl font-bold mb-2">No metrics data available</h3>
+              <p className="text-gray-500 mb-4">No videos with duration information were found in the selected time range.</p>
+              <Button 
+                onClick={handleRefresh}
+                className="bg-[#587aff] hover:bg-[#4563d0] text-white"
+              >
+                Refresh Data
+              </Button>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+} 
