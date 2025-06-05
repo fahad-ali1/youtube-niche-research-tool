@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 
 interface AddChannelFormProps {
   onAddChannel: (formData: { id: string }) => Promise<void>;
@@ -19,9 +20,24 @@ export default function AddChannelForm({ onAddChannel }: AddChannelFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await onAddChannel(formData);
-    setFormData({ id: "" });
-    setSubmitting(false);
+    try {
+      await onAddChannel(formData);
+      setFormData({ id: "" });
+    } catch (error) {
+      console.error("Error adding channel:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Check for authentication errors
+      if (errorMessage.includes("Authentication expired") || 
+          errorMessage.includes("re-authenticate") || 
+          errorMessage.includes("refresh token")) {
+        toast.error("YouTube authentication expired. Please re-authenticate using the YouTube Authentication button above.");
+      } else {
+        toast.error(`Error adding channel: ${errorMessage}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

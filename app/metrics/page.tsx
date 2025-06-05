@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import NavigationMenu from "@/app/components/NavigationMenu";
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ export default function Metrics() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDateVideos, setSelectedDateVideos] = useState<Video[]>([]);
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [isCacheWiping, setIsCacheWiping] = useState(false);
 
   useEffect(() => {
     fetchMetricsData(timeRange, includeShorts);
@@ -106,6 +108,69 @@ export default function Metrics() {
     setIsRefreshing(true);
     await fetchMetricsData(timeRange, includeShorts);
     setIsRefreshing(false);
+  };
+  
+  // Handle wiping the cache
+  const handleWipeCache = async () => {
+    setIsCacheWiping(true);
+    try {
+      const response = await fetch("/api/cache", {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Cache wiped successfully");
+        // Refresh the data
+        await fetchMetricsData(timeRange, includeShorts);
+      } else {
+        toast.error(data.error || "Failed to wipe cache");
+      }
+    } catch (error) {
+      toast.error("Error wiping cache");
+      console.error("Error wiping cache:", error);
+    } finally {
+      setIsCacheWiping(false);
+    }
+  };
+  
+  // Handle updating videos from the backend
+  const handleUpdateVideos = async () => {
+    setIsRefreshing(true);
+
+    try {
+      const response = await fetch("/api/fetch-videos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          timePeriod: 3, // Default to 3 months
+        }),
+      });
+      const data = await response.json();
+
+      if (data.timedOut) {
+        toast.success(data.message || "Workflow is updating! Refresh in a few minutes");
+        setIsRefreshing(false);
+        return;
+      }
+
+      if (data.success) {
+        toast.success("Videos updated successfully");
+        // Refresh the data
+        await fetchMetricsData(timeRange, includeShorts);
+      } else {
+        toast.error("Failed to update videos");
+        console.error("Failed to update videos:", data);
+      }
+    } catch (error) {
+      console.error("Error updating videos:", error);
+      toast.error("Error updating videos");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const fetchVideosForDate = async (date: string) => {
@@ -195,40 +260,15 @@ export default function Metrics() {
   return (
     <div className="min-h-screen bg-gray-100 p-2 md:p-4">
       <div className="max-w-7xl mx-auto">
+        {/* Navigation Menu */}
+        <NavigationMenu 
+          isUpdating={isRefreshing}
+          isCacheWiping={isCacheWiping}
+          onUpdate={handleUpdateVideos}
+          onWipeCache={handleWipeCache}
+        />
+        
         <header className="mb-4">
-          {/* Navbar */}
-          <div className="bg-white border-2 border-black rounded-lg p-2 mb-3 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] flex items-center justify-between">
-            <div className="flex items-center">
-              <BarChart3 className="h-6 w-6 text-[#587aff] mr-2" />
-              <h1 className="text-lg font-bold">Content Publishing Metrics</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
-              >
-                {isRefreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Refresh
-              </Button>
-              <Link href="/">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-            </div>
-          </div>
 
           {/* Filters and controls */}
           <div className="bg-white border-2 border-black rounded-lg p-3 mb-4 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)]">

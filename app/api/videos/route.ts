@@ -21,9 +21,20 @@ export async function GET(request: NextRequest) {
     const timeFrame = searchParams.get('timeFrame') || undefined;
     const outlierMultiplier = parseFloat(searchParams.get('outlierMultiplier') || '2');
     const outliersOnly = searchParams.get('outliersOnly') === 'true';
+    // Get video type with strict handling (log raw value for debugging)
+    const rawVideoType = searchParams.get('videoType');
+    console.log('Raw videoType parameter:', rawVideoType);
+    
+    // Normalize videoType - accept exactly 'short', 'long', or 'all'
+    // Default to 'long' if not provided or invalid
+    let videoType = 'long';
+    if (rawVideoType === 'short' || rawVideoType === 'all' || rawVideoType === 'long') {
+      videoType = rawVideoType;
+    }
+    console.log('Normalized videoType:', videoType);
     
     // Create cache key based on request parameters
-    const cacheKey = `videos:${channelId || 'all'}-${sortBy}-${sortOrder}-${page}-${pageSize}-${timeFrame || 'all'}-${outlierMultiplier}-${outliersOnly ? 'outliers' : 'all'}`;
+    const cacheKey = `videos:${channelId || 'all'}-${sortBy}-${sortOrder}-${page}-${pageSize}-${timeFrame || 'all'}-${videoType || 'long'}-${outlierMultiplier}-${outliersOnly ? 'outliers' : 'all'}`;
     
     // Try to get data from cache first
     const cachedData = await getCachedData(cacheKey);
@@ -62,9 +73,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Build the query based on parameters
+    // For video type filter: Using the isShort field from the schema
+    console.log(`Video Type Selected: ${videoType}`);
+    let videoTypeFilter = {};
+    
+    // IMPORTANT: When videoType is 'all', we don't add any filter (null shows both)
+    // When videoType is 'short', isShort must be true
+    // When videoType is 'long', isShort must be false
+    if (videoType === 'short') {
+      videoTypeFilter = { isShort: true };
+      console.log('Applied SHORT filter - should only show shorts', JSON.stringify(videoTypeFilter));
+    } else if (videoType === 'long') {
+      videoTypeFilter = { isShort: false };
+      console.log('Applied LONG filter - should only show long videos', JSON.stringify(videoTypeFilter));
+    } else {
+      // videoType is 'all' - no filter, show everything
+      console.log('No video type filter applied (showing ALL videos - both short and long)');
+    }
+    
     const where = {
       ...(channelId ? { channel_id: channelId } : {}),
-      ...dateFilter
+      ...dateFilter,
+      ...videoTypeFilter
     };
 
     // Different handling for outliers vs regular videos
@@ -87,13 +117,19 @@ export async function GET(request: NextRequest) {
         channelIds.map(async (id) => {
           const threeMonthsAgo = subMonths(new Date(), 3);
           
+          // Apply the same video type filter to the average calculation
+          const videoTypeFilter = videoType !== 'all' ? {
+            isShort: videoType === 'short'
+          } : {};
+          
           const channelVideos = await prisma.video_statistics.findMany({
             where: {
               channel_id: id,
               view_count: { gt: 0 },
               publish_time: {
                 gte: threeMonthsAgo
-              }
+              },
+              ...videoTypeFilter
             },
             select: {
               view_count: true
@@ -126,8 +162,10 @@ export async function GET(request: NextRequest) {
                 view_count: { 
                   gte: Math.floor(channel.avgViews * outlierMultiplier) // Using gte to get all videos >= threshold
                 },
-                ...dateFilter
+                ...dateFilter,
+                ...videoTypeFilter // Apply the same video type filter here
               },
+              // No include needed for this query
               orderBy: {
                 [sortBy as string]: sortOrder
               },
@@ -202,6 +240,11 @@ export async function GET(request: NextRequest) {
         uniqueChannelIds.map(async (id) => {
           const threeMonthsAgo = subMonths(new Date(), 3);
           
+          // Apply the same video type filter to the average calculation
+          const videoTypeFilter = videoType !== 'all' ? {
+            isShort: videoType === 'short'
+          } : {};
+          
           // Filter out videos with 0 views
           const channelVideos = await prisma.video_statistics.findMany({
             where: {
@@ -209,7 +252,8 @@ export async function GET(request: NextRequest) {
               view_count: { gt: 0 },
               publish_time: {
                 gte: threeMonthsAgo
-              }
+              },
+              ...videoTypeFilter
             },
             // Only retrieve the fields we need
             select: {

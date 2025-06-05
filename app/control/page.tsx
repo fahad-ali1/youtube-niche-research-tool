@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import DatabaseManagementPanel from "@/app/components/DatabaseManagementPanel";
+import NavigationMenu from "@/app/components/NavigationMenu";
 import YouTubeAuthButton from "@/app/components/YouTubeAuthButton";
 import { Competitor, VideoStatistics } from "@/types";
+import { useEffect, useState } from "react";
 
 // Import modular components
-import Header from "./components/Header";
-import VideoFetchingPanel from "./components/VideoFetchingPanel";
 import AddChannelForm from "./components/AddChannelForm";
-import CompetitorsList from "./components/CompetitorsList";
 import ChannelStatistics from "./components/ChannelStatistics";
+import CompetitorsList from "./components/CompetitorsList";
+import VideoFetchingPanel from "./components/VideoFetchingPanel";
 
 // Import services and utilities
 import * as api from "./services/api";
@@ -21,9 +20,13 @@ export default function ControlPanel() {
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [channelVideos, setChannelVideos] = useState<VideoStatistics[]>([]);
   const [channelStatsLoading, setChannelStatsLoading] = useState(false);
-  const [competitorStats, setCompetitorStats] = useState<Record<string, number>>({});
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [competitorStats, setCompetitorStats] = useState<
+    Record<string, number>
+  >({});
+  const [isFetchingVideos, setIsFetchingVideos] = useState(false);
+  const [isUpdatingVideos, setIsUpdatingVideos] = useState(false);
   const [isCacheWiping, setIsCacheWiping] = useState(false);
+  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
   const [timePeriod, setTimePeriod] = useState("3"); // Default to 3 months
 
   // Fetch competitors on mount
@@ -57,7 +60,7 @@ export default function ControlPanel() {
   };
 
   const handleUpdateVideos = async () => {
-    setIsUpdating(true);
+    setIsUpdatingVideos(true);
     try {
       const success = await api.updateVideos(timePeriod);
       if (success) {
@@ -67,7 +70,7 @@ export default function ControlPanel() {
         }
       }
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingVideos(false);
     }
   };
 
@@ -86,8 +89,24 @@ export default function ControlPanel() {
     }
   };
 
+  // Handle updating all videos (both existing and new)
+  const handleUpdateAll = async () => {
+    setIsUpdatingAll(true);
+    try {
+      const success = await api.updateAllVideos(timePeriod);
+      if (success) {
+        await fetchCompetitors();
+        if (selectedChannel) {
+          await handleChannelClick(selectedChannel);
+        }
+      }
+    } finally {
+      setIsUpdatingAll(false);
+    }
+  };
+
   const handleDirectFetch = async () => {
-    setIsUpdating(true);
+    setIsFetchingVideos(true);
     try {
       const success = await api.fetchNewVideos(timePeriod);
       if (success) {
@@ -97,7 +116,7 @@ export default function ControlPanel() {
         }
       }
     } finally {
-      setIsUpdating(false);
+      setIsFetchingVideos(false);
     }
   };
 
@@ -116,7 +135,7 @@ export default function ControlPanel() {
     const success = await api.deleteCompetitor(id);
     if (success) {
       await fetchCompetitors();
-      
+
       // If the deleted channel was selected, clear the selection
       if (selectedChannel === id) {
         setSelectedChannel(null);
@@ -138,7 +157,12 @@ export default function ControlPanel() {
     }
   };
 
-  const handleUpdateChannel = async (editFormData: { id: string; url: string; title: string; profilePic: string }) => {
+  const handleUpdateChannel = async (editFormData: {
+    id: string;
+    url: string;
+    title: string;
+    profilePic: string;
+  }) => {
     const success = await api.updateCompetitor(editFormData);
     if (success) {
       await fetchCompetitors();
@@ -148,29 +172,28 @@ export default function ControlPanel() {
   const selectedCompetitor = competitors.find((c) => c.id === selectedChannel);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-100 p-2 md:p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header with cache wipe button */}
-        <Header 
-          isCacheWiping={isCacheWiping} 
-          onWipeCache={handleWipeCache} 
+        {/* Navigation Menu */}
+        <NavigationMenu
+          isUpdating={isUpdatingAll}
+          isCacheWiping={isCacheWiping}
+          onUpdate={handleUpdateAll}
+          onWipeCache={handleWipeCache}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Database Management Panel */}
-          <DatabaseManagementPanel />
-
+        <div className="grid grid-cols-1 mt-6 lg:grid-cols-2 gap-8 mb-8">
           {/* YouTube Authentication */}
           <YouTubeAuthButton />
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Video Fetching Panel */}
           <VideoFetchingPanel
             timePeriod={timePeriod}
-            isUpdating={isUpdating}
+            isFetchingVideos={isFetchingVideos}
+            isUpdatingVideos={isUpdatingVideos}
             onTimePeriodChange={setTimePeriod}
             onFetchVideos={handleDirectFetch}
+            onUpdateVideos={handleUpdateVideos}
           />
         </div>
 
@@ -179,7 +202,7 @@ export default function ControlPanel() {
           <div>
             {/* Add Channel Form */}
             <AddChannelForm onAddChannel={handleAddChannel} />
-            
+
             {/* Competitors List */}
             <CompetitorsList
               competitors={competitors}

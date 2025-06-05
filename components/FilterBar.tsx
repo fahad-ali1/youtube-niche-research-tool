@@ -37,8 +37,9 @@ export function FilterBar({
     key: keyof FilterOptions,
     value: string | number
   ) => {
-    // Convert "all" value to empty string for the actual filter value
-    const actualValue = value === "all" ? "" : value;
+    // For videoType we need to preserve the actual 'all' value
+    // For other filters, convert "all" to empty string as before
+    const actualValue = (value === "all" && key !== "videoType") ? "" : value;
 
     // Apply filter immediately
     onFilterChange({
@@ -75,186 +76,220 @@ export function FilterBar({
 
   return (
     <div className="bg-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] mb-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-x-3 gap-y-2 p-3">
-        {/* Channel Filter */}
-        <div>
-          <Label
-            htmlFor="channelId"
-            className="text-xs font-medium text-gray-600 mb-1 block"
-          >
-            Channel
-          </Label>
-          <Select
-            value={getSelectValue(filterOptions.channelId)}
-            onValueChange={(value) => handleInputChange("channelId", value)}
-          >
-            <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
-              <SelectValue placeholder="All Channels" />
-            </SelectTrigger>
-            <SelectContent className="border border-gray-300 text-sm">
-              <SelectItem value="all">All Channels</SelectItem>
-              {competitors.map((competitor) => (
-                <SelectItem key={competitor.id} value={competitor.id}>
-                  {competitor.title || competitor.id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Channel Link - only shown when a channel is selected */}
-          {selectedCompetitor && (
-            <a
-              href={selectedCompetitor.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-xs text-[#587aff] hover:underline mt-1 cursor-pointer"
-            >
-              Visit <ExternalLink className="ml-1" size={10} />
-            </a>
-          )}
-        </div>
-
-        {/* Sort By */}
-        <div>
-          <Label
-            htmlFor="sortBy"
-            className="text-xs font-medium text-gray-600 mb-1 block"
-          >
-            Sort By
-          </Label>
-          <Select
-            value={filterOptions.sortBy || "publish_time"}
-            onValueChange={(value) => handleInputChange("sortBy", value)}
-          >
-            <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent className="border border-gray-300 text-sm">
-              <SelectItem value="publish_time">Date Published</SelectItem>
-              <SelectItem value="view_count">Views</SelectItem>
-              <SelectItem value="like_count">Likes</SelectItem>
-              <SelectItem value="comment_count">Comments</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Sort Order */}
-        <div>
-          <Label
-            htmlFor="sortOrder"
-            className="text-xs font-medium text-gray-600 mb-1 block"
-          >
-            Order
-          </Label>
-          <Select
-            value={filterOptions.sortOrder || "desc"}
-            onValueChange={(value) => handleInputChange("sortOrder", value)}
-          >
-            <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
-              <SelectValue placeholder="Order..." />
-            </SelectTrigger>
-            <SelectContent className="border border-gray-300 text-sm">
-              <SelectItem value="desc">Descending</SelectItem>
-              <SelectItem value="asc">Ascending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Time Frame */}
-        <div>
-          <Label
-            htmlFor="timeFrame"
-            className="text-xs font-medium text-gray-600 mb-1 block"
-          >
-            Time Frame
-          </Label>
-          <Select
-            value={getSelectValue(filterOptions.timeFrame)}
-            onValueChange={(value) => handleInputChange("timeFrame", value)}
-          >
-            <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent className="border border-gray-300 text-sm">
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="1w">Last Week</SelectItem>
-              <SelectItem value="2w">Last 2 Weeks</SelectItem>
-              <SelectItem value="1m">Last Month</SelectItem>
-              <SelectItem value="2m">Last 2 Months</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Outlier Multiplier with +/- buttons */}
-        <div>
-          <Label
-            htmlFor="outlierMultiplier"
-            className="text-xs font-medium text-gray-600 mb-1 block"
-          >
-            Outlier Multiplier
-          </Label>
-          <div className="flex border border-gray-300 rounded-md overflow-hidden h-8">
-            <Button
-              type="button"
-              onClick={decrementMultiplier}
-              className="px-1 h-full bg-gray-100 hover:bg-gray-200 rounded-none border-r border-gray-300 text-black"
-            >
-              <Minus size={14} />
-            </Button>
-            <Input
-              id="outlierMultiplier"
-              type="number"
-              min="1"
-              max="10"
-              step="0.2"
-              className="flex-1 border-0 focus-visible:ring-0 text-center h-full text-sm p-0"
-              value={filterOptions.outlierMultiplier || 2}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                if (!isNaN(value)) {
-                  const roundedValue = Math.round(value * 10) / 10;
-                  handleInputChange("outlierMultiplier", roundedValue);
-                }
-              }}
-            />
-            <Button
-              type="button"
-              onClick={incrementMultiplier}
-              className="px-1 h-full bg-gray-100 hover:bg-gray-200 rounded-none border-l border-gray-300 text-black"
-            >
-              <Plus size={14} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Options and Controls - combine Outliers Only and buttons in one cell */}
-        <div className="flex flex-col items-center">
-          <div className="flex items-center space-x-2 mb-2">
-            <Switch
-              id="outliersOnly"
-              checked={!!filterOptions.outliersOnly}
-              onCheckedChange={(checked: boolean) =>
-                handleToggleChange("outliersOnly", checked)
-              }
-              className="data-[state=checked]:bg-[#587aff] border border-gray-200"
-            />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-3 p-4">
+        {/* Column 1: Primary Filters */}
+        <div className="space-y-4">
+          {/* Channel Filter */}
+          <div>
             <Label
-              htmlFor="outliersOnly"
-              className="text-xs font-medium cursor-pointer"
-              onClick={() =>
-                handleToggleChange("outliersOnly", !filterOptions.outliersOnly)
-              }
+              htmlFor="channelId"
+              className="text-xs font-medium text-gray-600 mb-1 block"
             >
-              Outliers Only
+              Channel
             </Label>
+            <Select
+              value={getSelectValue(filterOptions.channelId)}
+              onValueChange={(value) => handleInputChange("channelId", value)}
+            >
+              <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
+                <SelectValue placeholder="All Channels" />
+              </SelectTrigger>
+              <SelectContent className="border border-gray-300 text-sm">
+                <SelectItem value="all">All Channels</SelectItem>
+                {competitors.map((competitor) => (
+                  <SelectItem key={competitor.id} value={competitor.id}>
+                    {competitor.title || competitor.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Channel Link - only shown when a channel is selected */}
+            {selectedCompetitor && (
+              <a
+                href={selectedCompetitor.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-xs text-[#587aff] hover:underline mt-1 cursor-pointer"
+              >
+                Visit <ExternalLink className="ml-1" size={10} />
+              </a>
+            )}
           </div>
 
-          <div className="flex items-center gap-1">
+          {/* Video Type */}
+          <div>
+            <Label
+              htmlFor="videoType"
+              className="text-xs font-medium text-gray-600 mb-1 block"
+            >
+              Video Type
+            </Label>
+            <Select
+              value={filterOptions.videoType || "long"}
+              onValueChange={(value) => handleInputChange("videoType", value)}
+            >
+              <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
+                <SelectValue placeholder="Long Videos" />
+              </SelectTrigger>
+              <SelectContent className="border border-gray-300 text-sm">
+                <SelectItem value="all">Short + Long</SelectItem>
+                <SelectItem value="short">Short Videos</SelectItem>
+                <SelectItem value="long">Long Videos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Time Frame */}
+          <div>
+            <Label
+              htmlFor="timeFrame"
+              className="text-xs font-medium text-gray-600 mb-1 block"
+            >
+              Time Frame
+            </Label>
+            <Select
+              value={getSelectValue(filterOptions.timeFrame)}
+              onValueChange={(value) => handleInputChange("timeFrame", value)}
+            >
+              <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
+                <SelectValue placeholder="All Time" />
+              </SelectTrigger>
+              <SelectContent className="border border-gray-300 text-sm">
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="1w">Last Week</SelectItem>
+                <SelectItem value="2w">Last 2 Weeks</SelectItem>
+                <SelectItem value="1m">Last Month</SelectItem>
+                <SelectItem value="2m">Last 2 Months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Column 2: Sort and Analysis Filters */}
+        <div className="space-y-4">
+          {/* Sort By */}
+          <div>
+            <Label
+              htmlFor="sortBy"
+              className="text-xs font-medium text-gray-600 mb-1 block"
+            >
+              Sort By
+            </Label>
+            <Select
+              value={getSelectValue(filterOptions.sortBy)}
+              onValueChange={(value) => handleInputChange("sortBy", value)}
+            >
+              <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
+                <SelectValue placeholder="Publish Date" />
+              </SelectTrigger>
+              <SelectContent className="border border-gray-300 text-sm">
+                <SelectItem value="publish_time">Publish Date</SelectItem>
+                <SelectItem value="view_count">Views</SelectItem>
+                <SelectItem value="like_count">Likes</SelectItem>
+                <SelectItem value="comment_count">Comments</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sort Order */}
+          <div>
+            <Label
+              htmlFor="sortOrder"
+              className="text-xs font-medium text-gray-600 mb-1 block"
+            >
+              Sort Order
+            </Label>
+            <Select
+              value={getSelectValue(filterOptions.sortOrder)}
+              onValueChange={(value) => handleInputChange("sortOrder", value)}
+            >
+              <SelectTrigger className="border border-gray-300 hover:border-[#587aff] w-full h-8 text-sm">
+                <SelectValue placeholder="Descending" />
+              </SelectTrigger>
+              <SelectContent className="border border-gray-300 text-sm">
+                <SelectItem value="desc">Descending</SelectItem>
+                <SelectItem value="asc">Ascending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Outlier Multiplier with +/- buttons */}
+          <div>
+            <Label
+              htmlFor="outlierMultiplier"
+              className="text-xs font-medium text-gray-600 mb-1 block"
+            >
+              Outlier Multiplier
+            </Label>
+            <div className="flex border border-gray-300 rounded-md overflow-hidden h-8">
+              <Button
+                type="button"
+                onClick={decrementMultiplier}
+                className="px-1 h-full bg-gray-100 hover:bg-gray-200 rounded-none border-r border-gray-300 text-black"
+              >
+                <Minus size={14} />
+              </Button>
+              <Input
+                id="outlierMultiplier"
+                type="number"
+                min="1"
+                max="10"
+                step="0.2"
+                className="flex-1 border-0 focus-visible:ring-0 text-center h-full text-sm p-0"
+                value={filterOptions.outlierMultiplier || 2}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  if (!isNaN(value)) {
+                    const roundedValue = Math.round(value * 10) / 10;
+                    handleInputChange("outlierMultiplier", roundedValue);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                onClick={incrementMultiplier}
+                className="px-1 h-full bg-gray-100 hover:bg-gray-200 rounded-none border-l border-gray-300 text-black"
+              >
+                <Plus size={14} />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Column 3: Controls and Actions */}
+        <div className="flex flex-col justify-between h-full gap-3">
+          {/* Top: Outliers Only Switch */}
+          <div>
+            <Label className="text-xs font-medium text-gray-600 mb-1 block opacity-0">Options</Label>
+            <div className="flex items-center space-x-2 border border-gray-300 p-2 rounded-md h-8">
+              <Switch
+                id="outliersOnly"
+                checked={!!filterOptions.outliersOnly}
+                onCheckedChange={(checked: boolean) =>
+                  handleToggleChange("outliersOnly", checked)
+                }
+                className="data-[state=checked]:bg-[#587aff] border border-gray-200"
+              />
+              <Label
+                htmlFor="outliersOnly"
+                className="text-xs font-medium cursor-pointer"
+                onClick={() =>
+                  handleToggleChange("outliersOnly", !filterOptions.outliersOnly)
+                }
+              >
+                Outliers Only
+              </Label>
+            </div>
+          </div>
+
+          {/* Bottom: Reset Filters Button */}
+          <div className="flex items-end h-full">
             <Button
               type="button"
               onClick={onResetFilters}
               variant="outline"
-              className="h-6 text-xs border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] px-2"
+              className="h-8 text-xs border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] px-3 w-full"
             >
               <RotateCcw size={12} className="mr-1" /> Reset Filters
             </Button>

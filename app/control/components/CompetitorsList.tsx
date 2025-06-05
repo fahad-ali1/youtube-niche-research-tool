@@ -209,8 +209,10 @@ export default function CompetitorsList({
                         {competitor.title || competitor.id}
                       </p>
                       <div className="flex items-center text-sm text-gray-500">
-                        <span className="truncate">
-                          {competitor.url}
+                        <span className="truncate" title={competitor.url}>
+                          {competitor.url.length > 40
+                            ? `${competitor.url.substring(0, 37)}...`
+                            : competitor.url}
                         </span>
                         <a
                           href={competitor.url}

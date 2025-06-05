@@ -22,6 +22,7 @@ export interface FilterOptions {
   sortBy?: "view_count" | "like_count" | "comment_count" | "publish_time";
   sortOrder?: "asc" | "desc";
   timeFrame?: "1w" | "2w" | "1m" | "2m";
+  videoType?: "all" | "short" | "long";
   outlierMultiplier?: number;
   outliersOnly?: boolean;
 }

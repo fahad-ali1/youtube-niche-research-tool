@@ -36,6 +36,15 @@ export default function YouTubeAuthButton() {
       const data = await response.json();
 
       setAuthStatus(data.authenticated ? "authenticated" : "unauthenticated");
+      
+      // If there's an error message, show it as a toast
+      if (data.error) {
+        toast.error(`YouTube authentication issue: ${data.error}`);
+        // If the error is about expired auth, set status to unauthenticated
+        if (data.error.includes("expired") || data.error.includes("refresh token")) {
+          setAuthStatus("unauthenticated");
+        }
+      }
     } catch (error) {
       console.error("Error checking auth status:", error);
       setAuthStatus("unknown");
@@ -93,13 +102,13 @@ export default function YouTubeAuthButton() {
       <div className="flex space-x-4">
         <Button
           onClick={handleAuth}
-          disabled={loading || authStatus === "authenticated"}
+          disabled={loading}
           className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
         >
           {loading ? (
             "Connecting..."
           ) : authStatus === "authenticated" ? (
-            "Connected"
+            <>Re-Authenticate</>  
           ) : (
             <>
               <LogIn className="h-4 w-4" />

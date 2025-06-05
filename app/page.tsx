@@ -2,6 +2,7 @@
 
 import { FilterBar } from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
+import NavigationMenu from "@/app/components/NavigationMenu";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -31,6 +32,7 @@ import { useInView } from "react-intersection-observer";
 const DEFAULT_FILTERS: FilterOptions = {
   sortBy: "publish_time",
   sortOrder: "desc",
+  videoType: "long",
   outlierMultiplier: 2,
   outliersOnly: false,
 };
@@ -168,6 +170,8 @@ export default function Home() {
     if (filterOptions.outliersOnly) {
       params.outliersOnly = filterOptions.outliersOnly.toString();
     }
+    // Add videoType param (always include it)
+    params.videoType = filterOptions.videoType || "long";
 
     const queryParams = new URLSearchParams(params);
     const response = await fetch(`/api/videos?${queryParams.toString()}`);
@@ -307,65 +311,17 @@ export default function Home() {
     <div className="min-h-screen bg-gray-100 p-2 md:p-4">
       <div className="max-w-7xl mx-auto">
         <header className="mb-4">
-          {/* Navbar */}
-          <div className="bg-white border-2 border-black rounded-lg p-2 mb-3 shadow-[4px_4px_0px_0px_rgba(88,122,255,0.8)] flex items-center justify-between">
-            <div className="flex items-center">
-              <Youtube className="h-6 w-6 text-[#587aff] mr-2" />
-              <h1 className="text-lg font-bold">
-                YouTube Competitor Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <WordFrequencyDialog currentVideos={videos} />
-              <Button
-                variant="default"
-                size="sm"
-                disabled={isUpdating}
-                onClick={handleUpdateVideos}
-                className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-1"
-              >
-                {isUpdating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <DownloadCloud className="h-4 w-4" />
-                )}
-                {isUpdating ? "Updating..." : "Update"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isCacheWiping}
-                onClick={handleWipeCache}
-                className="border border-gray-300 hover:border-red-500 hover:text-red-500 flex items-center gap-1"
-              >
-                {isCacheWiping ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-                {isCacheWiping ? "Wiping..." : "Wipe Cache"}
-              </Button>
-              <Link href="/metrics">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
-                >
-                  <Clock className="h-4 w-4" />
-                  Metrics
-                </Button>
-              </Link>
-              <Link href="/control">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border border-gray-300 hover:border-[#587aff] hover:text-[#587aff] flex items-center gap-1"
-                >
-                  <Settings className="h-4 w-4" />
-                  Control Panel
-                </Button>
-              </Link>
-            </div>
+          {/* Navigation Menu */}
+          <NavigationMenu 
+            isUpdating={isUpdating}
+            isCacheWiping={isCacheWiping}
+            onUpdate={handleUpdateVideos}
+            onWipeCache={handleWipeCache}
+          />
+          
+          {/* Word Frequency Dialog */}
+          <div className="flex justify-end mb-2">
+            <WordFrequencyDialog currentVideos={videos} />
           </div>
 
           {/* Filters */}

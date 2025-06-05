@@ -42,8 +42,12 @@ export const addCompetitor = async (formData: { id: string }): Promise<boolean> 
     return true;
   } catch (error) {
     console.error("Error adding channel:", error);
-    toast.error(error instanceof Error ? error.message : "Failed to add channel");
-    return false;
+    
+    // Don't show toast here - we'll handle it in the component
+    // to provide better error messages and actions
+    
+    // Re-throw the error so it can be handled by the component
+    throw error;
   }
 };
 
@@ -108,7 +112,7 @@ export const fetchChannelStats = async (
 // Video-related API calls
 export const updateVideos = async (timePeriod: string): Promise<boolean> => {
   try {
-    const response = await fetch("/api/fetch-videos", {
+    const response = await fetch("/api/youtube/update-videos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -186,6 +190,35 @@ export const wipeCache = async (): Promise<boolean> => {
   } catch (error) {
     toast.error("Error wiping cache");
     console.error("Error wiping cache:", error);
+    return false;
+  }
+};
+
+// Update all videos (both existing and new)
+export const updateAllVideos = async (timePeriod: string): Promise<boolean> => {
+  try {
+    const response = await fetch("/api/videos/update-all", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        timePeriod: parseInt(timePeriod),
+      }),
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      toast.success(`Updated ${data.videosUpdated} videos and added ${data.videosAdded} new videos`);
+      return true;
+    } else {
+      toast.error(data.error || "Failed to update videos");
+      console.error("Failed to update videos:", data);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error updating all videos:", error);
+    toast.error("Error updating videos");
     return false;
   }
 };
