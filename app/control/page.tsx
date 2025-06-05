@@ -1,55 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import DatabaseManagementPanel from "@/app/components/DatabaseManagementPanel";
 import YouTubeAuthButton from "@/app/components/YouTubeAuthButton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Competitor, VideoStatistics } from "@/types";
-import { format } from "date-fns";
-import {
-  ArrowLeft,
-  Calendar,
-  Check,
-  DownloadCloud,
-  ExternalLink,
-  Loader2,
-  Pencil,
-  Trash2,
-  X,
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+
+// Import modular components
+import Header from "./components/Header";
+import VideoFetchingPanel from "./components/VideoFetchingPanel";
+import AddChannelForm from "./components/AddChannelForm";
+import CompetitorsList from "./components/CompetitorsList";
+import ChannelStatistics from "./components/ChannelStatistics";
+
+// Import services and utilities
+import * as api from "./services/api";
 
 export default function ControlPanel() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ id: "", url: "", title: "" });
-  const [submitting, setSubmitting] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [channelVideos, setChannelVideos] = useState<VideoStatistics[]>([]);
   const [channelStatsLoading, setChannelStatsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [competitorStats, setCompetitorStats] = useState<
-    Record<string, number>
-  >({});
+  const [competitorStats, setCompetitorStats] = useState<Record<string, number>>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCacheWiping, setIsCacheWiping] = useState(false);
-  const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    id: "",
-    url: "",
-    title: "",
-  });
-  const [isSaving, setIsSaving] = useState(false);
   const [timePeriod, setTimePeriod] = useState("3"); // Default to 3 months
 
   // Fetch competitors on mount
@@ -63,124 +37,11 @@ export default function ControlPanel() {
     }
   }, [competitors]);
 
-  // Handle updating videos from the backend
-  const handleUpdateVideos = async () => {
-    setIsUpdating(true);
-
-    try {
-      const response = await fetch("/api/fetch-videos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          timePeriod: parseInt(timePeriod),
-        }),
-      });
-      const data = await response.json();
-
-      if (data.timedOut) {
-        // Show timeout message
-        toast.success(
-          data.message || "Workflow is updating! Refresh in a few minutes"
-        );
-        setIsUpdating(false);
-        return;
-      }
-
-      if (data.success) {
-        toast.success("Videos updated successfully");
-        // Refresh the competitors stats
-        await fetchCompetitors();
-        if (selectedChannel) {
-          await handleChannelClick(selectedChannel);
-        }
-      } else {
-        toast.error("Failed to update videos");
-        console.error("Failed to update videos:", data);
-      }
-    } catch (error) {
-      console.error("Error updating videos:", error);
-      toast.error("Error updating videos");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // Handle wiping the cache
-  const handleWipeCache = async () => {
-    try {
-      setIsCacheWiping(true);
-      const response = await fetch("/api/cache", {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success("Cache wiped successfully");
-        // Refresh the current data
-        await fetchCompetitors();
-        if (selectedChannel) {
-          await handleChannelClick(selectedChannel);
-        }
-      } else {
-        toast.error(data.error || "Failed to wipe cache");
-      }
-    } catch (error) {
-      toast.error("Error wiping cache");
-      console.error("Error wiping cache:", error);
-    } finally {
-      setIsCacheWiping(false);
-    }
-  };
-
-  // Handle direct fetch of new videos (bypassing the webhook)
-  const handleDirectFetch = async () => {
-    setIsUpdating(true);
-
-    try {
-      const response = await fetch("/api/youtube/fetch-new-videos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          timePeriod: parseInt(timePeriod),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(`Added ${data.videosAdded} new videos`);
-        // Refresh the competitors stats
-        await fetchCompetitors();
-        if (selectedChannel) {
-          await handleChannelClick(selectedChannel);
-        }
-      } else {
-        toast.error(data.error || "Failed to fetch new videos");
-        console.error("Failed to fetch new videos:", data);
-      }
-    } catch (error) {
-      console.error("Error fetching new videos:", error);
-      toast.error("Error fetching new videos");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const fetchCompetitors = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/competitors");
-      if (!response.ok) throw new Error("Failed to fetch competitors");
-      const data = await response.json();
+      const data = await api.fetchCompetitors();
       setCompetitors(data);
-    } catch (error) {
-      console.error("Error fetching competitors:", error);
-      toast.error("Failed to load competitors");
     } finally {
       setLoading(false);
     }
@@ -188,63 +49,62 @@ export default function ControlPanel() {
 
   const fetchCompetitorStats = async () => {
     try {
-      // Fetch all channel stats in a single API call
-      const response = await fetch("/api/channels/stats");
-      if (!response.ok) throw new Error("Failed to fetch channel statistics");
-
-      const statsMap = await response.json();
+      const statsMap = await api.fetchCompetitorStats();
       setCompetitorStats(statsMap);
     } catch (error) {
       console.error("Error fetching competitor stats:", error);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-
+  const handleUpdateVideos = async () => {
+    setIsUpdating(true);
     try {
-      // Validate form data
-      if (!formData.id.trim() || !formData.url.trim()) {
-        toast.error("Channel ID and URL are required");
-        return;
+      const success = await api.updateVideos(timePeriod);
+      if (success) {
+        await fetchCompetitors();
+        if (selectedChannel) {
+          await handleChannelClick(selectedChannel);
+        }
       }
-
-      // Add channel
-      const response = await fetch("/api/competitors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to add channel");
-      }
-
-      // Refresh the competitors list
-      await fetchCompetitors();
-
-      // Reset form
-      setFormData({ id: "", url: "", title: "" });
-      toast.success("Channel added successfully");
-    } catch (error) {
-      console.error("Error adding channel:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to add channel"
-      );
     } finally {
-      setSubmitting(false);
+      setIsUpdating(false);
+    }
+  };
+
+  const handleWipeCache = async () => {
+    setIsCacheWiping(true);
+    try {
+      const success = await api.wipeCache();
+      if (success) {
+        await fetchCompetitors();
+        if (selectedChannel) {
+          await handleChannelClick(selectedChannel);
+        }
+      }
+    } finally {
+      setIsCacheWiping(false);
+    }
+  };
+
+  const handleDirectFetch = async () => {
+    setIsUpdating(true);
+    try {
+      const success = await api.fetchNewVideos(timePeriod);
+      if (success) {
+        await fetchCompetitors();
+        if (selectedChannel) {
+          await handleChannelClick(selectedChannel);
+        }
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleAddChannel = async (formData: { id: string }) => {
+    const success = await api.addCompetitor(formData);
+    if (success) {
+      await fetchCompetitors();
     }
   };
 
@@ -253,27 +113,15 @@ export default function ControlPanel() {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/competitors/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete channel");
-      }
-
-      // Refresh the competitors list
+    const success = await api.deleteCompetitor(id);
+    if (success) {
       await fetchCompetitors();
-      toast.success("Channel deleted successfully");
-
+      
       // If the deleted channel was selected, clear the selection
       if (selectedChannel === id) {
         setSelectedChannel(null);
         setChannelVideos([]);
       }
-    } catch (error) {
-      console.error("Error deleting channel:", error);
-      toast.error("Failed to delete channel");
     }
   };
 
@@ -283,156 +131,30 @@ export default function ControlPanel() {
     setChannelVideos([]);
 
     try {
-      const response = await fetch(`/api/channels/${channelId}/stats`);
-      if (!response.ok) throw new Error("Failed to fetch channel stats");
-
-      const data = await response.json();
-
-      console.log(data);
-
+      const data = await api.fetchChannelStats(channelId);
       setChannelVideos(data.videos);
-    } catch (error) {
-      console.error("Error fetching channel stats:", error);
-      toast.error("Failed to load channel statistics");
     } finally {
       setChannelStatsLoading(false);
     }
   };
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat("en-US").format(num);
-  };
-
-  const calculateAverageViews = (videos: VideoStatistics[]) => {
-    const videosWithViews = videos.filter((video) => video.view_count > 0);
-    if (videosWithViews.length === 0) return 0;
-    const totalViews = videosWithViews.reduce(
-      (sum, video) => sum + video.view_count,
-      0
-    );
-    return totalViews / videosWithViews.length;
+  const handleUpdateChannel = async (editFormData: { id: string; url: string; title: string; profilePic: string }) => {
+    const success = await api.updateCompetitor(editFormData);
+    if (success) {
+      await fetchCompetitors();
+    }
   };
 
   const selectedCompetitor = competitors.find((c) => c.id === selectedChannel);
 
-  // Sort competitors: channels without titles first, then alphabetically by title
-  const sortedCompetitors = [...competitors].sort((a, b) => {
-    // If neither has a title, sort by ID
-    if (!a.title && !b.title) {
-      return a.id.localeCompare(b.id);
-    }
-    // If a doesn't have a title, it comes first
-    if (!a.title) return -1;
-    // If b doesn't have a title, it comes first
-    if (!b.title) return 1;
-    // Both have titles, sort alphabetically
-    return a.title.localeCompare(b.title);
-  });
-
-  const filteredCompetitors =
-    searchQuery.trim() === ""
-      ? sortedCompetitors
-      : sortedCompetitors.filter(
-          (comp) =>
-            (comp.title?.toLowerCase() || "").includes(
-              searchQuery.toLowerCase()
-            ) || comp.id.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-  const handleEditChannel = (competitor: Competitor) => {
-    setEditingChannelId(competitor.id);
-    setEditFormData({
-      id: competitor.id,
-      url: competitor.url,
-      title: competitor.title || "",
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingChannelId(null);
-    setEditFormData({ id: "", url: "", title: "" });
-  };
-
-  const handleUpdateChannel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-
-    try {
-      // Validate form data
-      if (!editFormData.id.trim() || !editFormData.url.trim()) {
-        toast.error("Channel ID and URL are required");
-        setIsSaving(false);
-        return;
-      }
-
-      // Update channel
-      const response = await fetch(`/api/competitors/${editFormData.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editFormData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update channel");
-      }
-
-      // Refresh the competitors list
-      await fetchCompetitors();
-
-      // Reset form
-      setEditingChannelId(null);
-      setEditFormData({ id: "", url: "", title: "" });
-      toast.success("Channel updated successfully");
-    } catch (error) {
-      console.error("Error updating channel:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update channel"
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <div className="bg-black text-white border-4 border-black rounded-lg p-6 mb-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)]">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex items-center justify-between flex-1">
-                <h1 className="text-3xl md:text-2xl font-bold text-center text-white">
-                  Control Panel
-                </h1>
-                <Link href="/">
-                  <Button
-                    variant="outline"
-                    className="border-2 border-white text-black hover:bg-gray-200 cursor-pointer"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isCacheWiping}
-                  onClick={handleWipeCache}
-                  className="border border-gray-300 bg-white hover:border-red-500 hover:text-red-500 text-black flex items-center gap-1"
-                >
-                  {isCacheWiping ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  {isCacheWiping ? "Wiping..." : "Wipe Cache"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </header>
+        {/* Header with cache wipe button */}
+        <Header 
+          isCacheWiping={isCacheWiping} 
+          onWipeCache={handleWipeCache} 
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Database Management Panel */}
@@ -443,394 +165,44 @@ export default function ControlPanel() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Video Fetching Controls */}
-          <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-bold mb-4">Fetch YouTube Videos</h2>
-            <p className="text-gray-600 mb-4">
-              Fetch new videos from all your competitor channels to update your
-              dashboard statistics.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-start gap-4">
-              <div className="flex items-center gap-2 bg-blue-50 p-3 border-2 border-blue-200 rounded-lg">
-                <Calendar className="h-5 w-5 text-blue-500" />
-                <div>
-                  <p className="text-sm font-medium text-blue-700 mb-1">
-                    Time Period
-                  </p>
-                  <Select value={timePeriod} onValueChange={setTimePeriod}>
-                    <SelectTrigger className="w-[140px] border-blue-200 focus:ring-blue-500">
-                      <SelectValue placeholder="Select period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Last 1 Month</SelectItem>
-                      <SelectItem value="3">Last 3 Months</SelectItem>
-                      <SelectItem value="6">Last 6 Months</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button
-                variant="default"
-                disabled={isUpdating}
-                onClick={handleDirectFetch}
-                className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 px-4 py-2 h-auto"
-              >
-                {isUpdating ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <DownloadCloud className="h-5 w-5" />
-                )}
-                <div>
-                  <p className="font-medium">
-                    {isUpdating ? "Fetching..." : "Fetch Videos"}
-                  </p>
-                  <p className="text-xs text-blue-100">
-                    Using {timePeriod}-month period
-                  </p>
-                </div>
-              </Button>
-            </div>
-          </div>
+          {/* Video Fetching Panel */}
+          <VideoFetchingPanel
+            timePeriod={timePeriod}
+            isUpdating={isUpdating}
+            onTimePeriodChange={setTimePeriod}
+            onFetchVideos={handleDirectFetch}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Channel Management */}
           <div>
-            <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-8">
-              <h2 className="text-2xl font-bold mb-4">Add New Channel</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="id" className="text-sm font-bold">
-                    Channel ID
-                  </Label>
-                  <Input
-                    id="id"
-                    name="id"
-                    value={formData.id}
-                    onChange={handleInputChange}
-                    className="border-2 border-black mt-1"
-                    placeholder="e.g. UCnRGF5GzH5Lz4hOpjq2FrOw"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="url" className="text-sm font-bold">
-                    Channel URL
-                  </Label>
-                  <Input
-                    id="url"
-                    name="url"
-                    value={formData.url}
-                    onChange={handleInputChange}
-                    className="border-2 border-black mt-1"
-                    placeholder="https://www.youtube.com/channel/UCnRGF5GzH5Lz4hOpjq2FrOw"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="title" className="text-sm font-bold">
-                    Channel Title
-                  </Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    className="border-2 border-black mt-1"
-                    placeholder="e.g. Channel Name"
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="bg-black text-white font-bold hover:bg-gray-800 w-full"
-                >
-                  {submitting ? "Adding..." : "Add Channel"}
-                </Button>
-              </form>
-            </div>
-
-            <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-              <h2 className="text-2xl font-bold mb-4">Competitors</h2>
-
-              {/* Search input */}
-              <div className="mb-4">
-                <Input
-                  placeholder="Search competitors..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-2 border-black"
-                />
-              </div>
-
-              {loading ? (
-                <p>Loading competitors...</p>
-              ) : competitors.length === 0 ? (
-                <p className="text-gray-500">No competitors found</p>
-              ) : (
-                <div className="h-[400px] overflow-y-auto border-2 border-black rounded-lg">
-                  <ul className="space-y-2 p-2">
-                    {filteredCompetitors.map((competitor) => (
-                      <li
-                        key={competitor.id}
-                        className={`
-                          p-4 border-2 border-black rounded-lg 
-                          ${
-                            selectedChannel === competitor.id
-                              ? "bg-blue-50"
-                              : "bg-white"
-                          }
-                          hover:bg-gray-50 cursor-pointer transition-colors
-                        `}
-                      >
-                        {editingChannelId === competitor.id ? (
-                          <form
-                            onSubmit={handleUpdateChannel}
-                            className="space-y-2"
-                          >
-                            <div>
-                              <Label
-                                htmlFor="edit-id"
-                                className="text-sm font-bold"
-                              >
-                                Channel ID
-                              </Label>
-                              <Input
-                                id="edit-id"
-                                name="id"
-                                value={editFormData.id}
-                                onChange={handleEditInputChange}
-                                className="border-2 border-black mt-1"
-                                disabled
-                              />
-                            </div>
-
-                            <div>
-                              <Label
-                                htmlFor="edit-url"
-                                className="text-sm font-bold"
-                              >
-                                Channel URL
-                              </Label>
-                              <Input
-                                id="edit-url"
-                                name="url"
-                                value={editFormData.url}
-                                onChange={handleEditInputChange}
-                                className="border-2 border-black mt-1"
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label
-                                htmlFor="edit-title"
-                                className="text-sm font-bold"
-                              >
-                                Channel Title
-                              </Label>
-                              <Input
-                                id="edit-title"
-                                name="title"
-                                value={editFormData.title}
-                                onChange={handleEditInputChange}
-                                className="border-2 border-black mt-1"
-                              />
-                            </div>
-
-                            <div className="flex gap-2 mt-2">
-                              <Button
-                                type="submit"
-                                disabled={isSaving}
-                                className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
-                              >
-                                <Check size={16} />
-                                {isSaving ? "Saving..." : "Save"}
-                              </Button>
-                              <Button
-                                type="button"
-                                onClick={handleCancelEdit}
-                                className="bg-gray-200 text-gray-800 hover:bg-gray-300 flex items-center gap-1"
-                              >
-                                <X size={16} />
-                                Cancel
-                              </Button>
-                            </div>
-                          </form>
-                        ) : (
-                          <div className="flex justify-between items-start">
-                            <div
-                              className="flex-grow"
-                              onClick={() => handleChannelClick(competitor.id)}
-                            >
-                              <p className="font-bold">
-                                {competitor.title || competitor.id}
-                              </p>
-                              <div className="flex items-center text-sm text-gray-500">
-                                <span className="truncate">
-                                  {competitor.url}
-                                </span>
-                                <a
-                                  href={competitor.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="ml-1 text-blue-500 hover:text-blue-700"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink size={14} />
-                                </a>
-                              </div>
-                              <div className="mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full inline-block">
-                                {competitorStats[competitor.id] !== undefined
-                                  ? `${competitorStats[competitor.id]} videos`
-                                  : "Update to get stats"}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-2 border-blue-500 text-blue-500 hover:bg-blue-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditChannel(competitor);
-                                }}
-                              >
-                                <Pencil size={16} />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-2 border-red-500 text-red-500 hover:bg-red-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteChannel(competitor.id);
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            {/* Add Channel Form */}
+            <AddChannelForm onAddChannel={handleAddChannel} />
+            
+            {/* Competitors List */}
+            <CompetitorsList
+              competitors={competitors}
+              competitorStats={competitorStats}
+              selectedChannel={selectedChannel}
+              loading={loading}
+              onChannelClick={handleChannelClick}
+              onDeleteChannel={handleDeleteChannel}
+              onUpdateChannel={handleUpdateChannel}
+            />
           </div>
 
           {/* Channel Statistics */}
           <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            {selectedChannel ? (
-              <>
-                <h2 className="text-2xl font-bold mb-4">
-                  {selectedCompetitor?.title || selectedChannel} Statistics
-                </h2>
-                {channelStatsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <p>Loading statistics...</p>
-                  </div>
-                ) : channelVideos.length > 0 ? (
-                  <div>
-                    <div className="mb-6 p-4 bg-blue-50 border-2 border-black rounded-lg">
-                      <h3 className="text-lg font-bold mb-2">
-                        3-Month Average Calculation
-                      </h3>
-                      <p>
-                        <strong>Total Videos:</strong> {channelVideos.length}
-                      </p>
-                      <p>
-                        <strong>Videos with Views (used for average):</strong>{" "}
-                        {channelVideos.filter((v) => v.view_count > 0).length}
-                      </p>
-                      <p>
-                        <strong>Total Views:</strong>{" "}
-                        {formatNumber(
-                          channelVideos
-                            .filter((v) => v.view_count > 0)
-                            .reduce((sum, v) => sum + v.view_count, 0)
-                        )}
-                      </p>
-                      <p className="text-xl mt-2">
-                        <strong>Average Views:</strong>{" "}
-                        {formatNumber(
-                          Math.round(calculateAverageViews(channelVideos))
-                        )}
-                      </p>
-                    </div>
-
-                    <h3 className="text-lg font-bold mb-2">Video Breakdown</h3>
-                    <div className="overflow-auto max-h-[600px] border-2 border-black rounded-lg">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-100 sticky top-0">
-                          <tr>
-                            <th className="px-4 py-2 text-left border-b-2 border-black">
-                              Video
-                            </th>
-                            <th className="px-4 py-2 text-right border-b-2 border-black">
-                              Views
-                            </th>
-                            <th className="px-4 py-2 text-right border-b-2 border-black">
-                              Published
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {channelVideos.map((video) => (
-                            <tr
-                              key={video.id}
-                              className="border-b border-gray-200 hover:bg-gray-50"
-                            >
-                              <td className="px-4 py-3">
-                                <a
-                                  href={`https://www.youtube.com/watch?v=${video.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:underline font-medium flex items-center"
-                                >
-                                  {video.title || video.id}
-                                  <ExternalLink size={14} className="ml-1" />
-                                </a>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {formatNumber(video.view_count)}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {format(
-                                  new Date(video.publish_time),
-                                  "MMM d, yyyy"
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <p className="text-gray-500">
-                      No videos found for this channel in the last 3 months
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="h-64 flex flex-col items-center justify-center">
-                <p className="text-xl text-gray-500 mb-2">
-                  Select a channel to view statistics
-                </p>
-                <p className="text-gray-400">
-                  Click on a channel from the list to see its statistics
-                </p>
-              </div>
-            )}
+            <h2 className="text-2xl font-bold mb-4">
+              {selectedCompetitor?.title || selectedChannel} Statistics
+            </h2>
+            <ChannelStatistics
+              selectedChannel={selectedChannel}
+              selectedCompetitor={selectedCompetitor}
+              channelVideos={channelVideos}
+              channelStatsLoading={channelStatsLoading}
+            />
           </div>
         </div>
       </div>

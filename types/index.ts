@@ -2,6 +2,7 @@ export interface Competitor {
   id: string;
   url: string;
   title?: string;
+  profilePic?: string;
 }
 
 export interface VideoStatistics {

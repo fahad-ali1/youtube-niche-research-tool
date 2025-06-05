@@ -11,7 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "YouTube Competitor Dashboard",
-  description: "Monitor and analyze competitor YouTube videos with powerful filtering and outlier detection",
+  description:
+    "Monitor and analyze competitor YouTube videos with powerful filtering and outlier detection",
 };
 
 export default function RootLayout({

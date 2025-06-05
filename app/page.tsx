@@ -1,35 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useInView } from "react-intersection-observer";
-import { VideoCard } from "@/components/VideoCard";
-import { VideoCardSkeleton } from "@/components/VideoCardSkeleton";
 import { FilterBar } from "@/components/FilterBar";
-import { Competitor, FilterOptions, VideoStatistics } from "@/types";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { WordFrequencyDialog } from "@/components/WordFrequencyDialog";
-import { toast } from "react-hot-toast";
-import {
-  ChevronDown,
-  ListFilter,
-  RefreshCw,
-  Youtube,
-  Loader2,
-  DownloadCloud,
-  Trash2,
-  Settings,
-  Clock
-} from "lucide-react";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { VideoCard } from "@/components/VideoCard";
+import { VideoCardSkeleton } from "@/components/VideoCardSkeleton";
+import { WordFrequencyDialog } from "@/components/WordFrequencyDialog";
+import { Competitor, FilterOptions, VideoStatistics } from "@/types";
+import {
+  Clock,
+  DownloadCloud,
+  Loader2,
+  Settings,
+  Trash2,
+  Youtube,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
+import { useInView } from "react-intersection-observer";
 
 // Default filters
 const DEFAULT_FILTERS: FilterOptions = {
@@ -84,7 +80,7 @@ export default function Home() {
     fetchCompetitors();
   }, []);
 
-  // Fetch videos when filters change or on initial load
+  // // Fetch videos when filters change or on initial load
   useEffect(() => {
     const fetchVideos = async () => {
       setIsLoading(true);
@@ -221,11 +217,13 @@ export default function Home() {
         // Refresh the videos with current filters
         setVideos([]);
         setPage(0);
-        
+
         // Refetch with current filters
         const response = await fetchVideosPage(0, pageSize);
         setVideos(response.videos);
-        setHasMoreVideos(response.pagination.page < response.pagination.totalPages - 1);
+        setHasMoreVideos(
+          response.pagination.page < response.pagination.totalPages - 1
+        );
       } else {
         toast.error(data.error || "Failed to wipe cache");
       }
@@ -240,33 +238,37 @@ export default function Home() {
   // Handle updating videos from the backend
   const handleUpdateVideos = async () => {
     setIsUpdating(true);
-    
+
     try {
-      const response = await fetch('/api/fetch-videos', {
-        method: 'POST',
+      const response = await fetch("/api/fetch-videos", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
       const data = await response.json();
-      
+
       if (data.timedOut) {
         // Show timeout message
-        toast.success(data.message || "Workflow is updating! Refresh in a few minutes");
+        toast.success(
+          data.message || "Workflow is updating! Refresh in a few minutes"
+        );
         setIsUpdating(false);
         return;
       }
-      
+
       if (data.success) {
         // Refresh the videos with no cache
         setVideos([]);
         setPage(0);
-        
+
         // Refetch with current filters
         const response = await fetchVideosPage(0, pageSize);
         setVideos(response.videos);
-        setHasMoreVideos(response.pagination.page < response.pagination.totalPages - 1);
-        
+        setHasMoreVideos(
+          response.pagination.page < response.pagination.totalPages - 1
+        );
+
         // Show success message
         toast.success("Videos updated successfully");
       } else {

@@ -9,9 +9,10 @@ datasource db {
 }
 
 model competitors {
-  id    String  @id @db.VarChar(255)
-  url   String  @db.VarChar(255)
-  title String? @db.VarChar(255)
+  id         String  @id @db.VarChar(255)
+  url        String  @db.VarChar(255)
+  title      String? @db.VarChar(255)
+  profilePic String? @db.VarChar(255)
 }
 
 model video_statistics {

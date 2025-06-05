@@ -1065,18 +1065,21 @@ export namespace Prisma {
     id: string | null
     url: string | null
     title: string | null
+    profilePic: string | null
   }
 
   export type CompetitorsMaxAggregateOutputType = {
     id: string | null
     url: string | null
     title: string | null
+    profilePic: string | null
   }
 
   export type CompetitorsCountAggregateOutputType = {
     id: number
     url: number
     title: number
+    profilePic: number
     _all: number
   }
 
@@ -1085,18 +1088,21 @@ export namespace Prisma {
     id?: true
     url?: true
     title?: true
+    profilePic?: true
   }
 
   export type CompetitorsMaxAggregateInputType = {
     id?: true
     url?: true
     title?: true
+    profilePic?: true
   }
 
   export type CompetitorsCountAggregateInputType = {
     id?: true
     url?: true
     title?: true
+    profilePic?: true
     _all?: true
   }
 
@@ -1176,6 +1182,7 @@ export namespace Prisma {
     id: string
     url: string
     title: string | null
+    profilePic: string | null
     _count: CompetitorsCountAggregateOutputType | null
     _min: CompetitorsMinAggregateOutputType | null
     _max: CompetitorsMaxAggregateOutputType | null
@@ -1199,27 +1206,31 @@ export namespace Prisma {
     id?: boolean
     url?: boolean
     title?: boolean
+    profilePic?: boolean
   }, ExtArgs["result"]["competitors"]>
 
   export type competitorsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     url?: boolean
     title?: boolean
+    profilePic?: boolean
   }, ExtArgs["result"]["competitors"]>
 
   export type competitorsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     url?: boolean
     title?: boolean
+    profilePic?: boolean
   }, ExtArgs["result"]["competitors"]>
 
   export type competitorsSelectScalar = {
     id?: boolean
     url?: boolean
     title?: boolean
+    profilePic?: boolean
   }
 
-  export type competitorsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "url" | "title", ExtArgs["result"]["competitors"]>
+  export type competitorsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "url" | "title" | "profilePic", ExtArgs["result"]["competitors"]>
 
   export type $competitorsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "competitors"
@@ -1228,6 +1239,7 @@ export namespace Prisma {
       id: string
       url: string
       title: string | null
+      profilePic: string | null
     }, ExtArgs["result"]["competitors"]>
     composites: {}
   }
@@ -1654,6 +1666,7 @@ export namespace Prisma {
     readonly id: FieldRef<"competitors", 'String'>
     readonly url: FieldRef<"competitors", 'String'>
     readonly title: FieldRef<"competitors", 'String'>
+    readonly profilePic: FieldRef<"competitors", 'String'>
   }
     
 
@@ -4151,7 +4164,8 @@ export namespace Prisma {
   export const CompetitorsScalarFieldEnum: {
     id: 'id',
     url: 'url',
-    title: 'title'
+    title: 'title',
+    profilePic: 'profilePic'
   };
 
   export type CompetitorsScalarFieldEnum = (typeof CompetitorsScalarFieldEnum)[keyof typeof CompetitorsScalarFieldEnum]
@@ -4287,12 +4301,14 @@ export namespace Prisma {
     id?: StringFilter<"competitors"> | string
     url?: StringFilter<"competitors"> | string
     title?: StringNullableFilter<"competitors"> | string | null
+    profilePic?: StringNullableFilter<"competitors"> | string | null
   }
 
   export type competitorsOrderByWithRelationInput = {
     id?: SortOrder
     url?: SortOrder
     title?: SortOrderInput | SortOrder
+    profilePic?: SortOrderInput | SortOrder
   }
 
   export type competitorsWhereUniqueInput = Prisma.AtLeast<{
@@ -4302,12 +4318,14 @@ export namespace Prisma {
     NOT?: competitorsWhereInput | competitorsWhereInput[]
     url?: StringFilter<"competitors"> | string
     title?: StringNullableFilter<"competitors"> | string | null
+    profilePic?: StringNullableFilter<"competitors"> | string | null
   }, "id">
 
   export type competitorsOrderByWithAggregationInput = {
     id?: SortOrder
     url?: SortOrder
     title?: SortOrderInput | SortOrder
+    profilePic?: SortOrderInput | SortOrder
     _count?: competitorsCountOrderByAggregateInput
     _max?: competitorsMaxOrderByAggregateInput
     _min?: competitorsMinOrderByAggregateInput
@@ -4320,6 +4338,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"competitors"> | string
     url?: StringWithAggregatesFilter<"competitors"> | string
     title?: StringNullableWithAggregatesFilter<"competitors"> | string | null
+    profilePic?: StringNullableWithAggregatesFilter<"competitors"> | string | null
   }
 
   export type video_statisticsWhereInput = {
@@ -4462,42 +4481,49 @@ export namespace Prisma {
     id: string
     url: string
     title?: string | null
+    profilePic?: string | null
   }
 
   export type competitorsUncheckedCreateInput = {
     id: string
     url: string
     title?: string | null
+    profilePic?: string | null
   }
 
   export type competitorsUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    profilePic?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type competitorsUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    profilePic?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type competitorsCreateManyInput = {
     id: string
     url: string
     title?: string | null
+    profilePic?: string | null
   }
 
   export type competitorsUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    profilePic?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type competitorsUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    profilePic?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type video_statisticsCreateInput = {
@@ -4693,18 +4719,21 @@ export namespace Prisma {
     id?: SortOrder
     url?: SortOrder
     title?: SortOrder
+    profilePic?: SortOrder
   }
 
   export type competitorsMaxOrderByAggregateInput = {
     id?: SortOrder
     url?: SortOrder
     title?: SortOrder
+    profilePic?: SortOrder
   }
 
   export type competitorsMinOrderByAggregateInput = {
     id?: SortOrder
     url?: SortOrder
     title?: SortOrder
+    profilePic?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
