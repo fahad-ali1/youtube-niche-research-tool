@@ -1,8 +1,7 @@
 "use client";
 
-import { FilterBar } from "@/components/FilterBar";
-import { Button } from "@/components/ui/button";
 import NavigationMenu from "@/app/components/NavigationMenu";
+import { FilterBar } from "@/components/FilterBar";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,15 +14,7 @@ import { VideoCard } from "@/components/VideoCard";
 import { VideoCardSkeleton } from "@/components/VideoCardSkeleton";
 import { WordFrequencyDialog } from "@/components/WordFrequencyDialog";
 import { Competitor, FilterOptions, VideoStatistics } from "@/types";
-import {
-  Clock,
-  DownloadCloud,
-  Loader2,
-  Settings,
-  Trash2,
-  Youtube,
-} from "lucide-react";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useInView } from "react-intersection-observer";
@@ -312,13 +303,13 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-4">
           {/* Navigation Menu */}
-          <NavigationMenu 
+          <NavigationMenu
             isUpdating={isUpdating}
             isCacheWiping={isCacheWiping}
             onUpdate={handleUpdateVideos}
             onWipeCache={handleWipeCache}
           />
-          
+
           {/* Word Frequency Dialog */}
           <div className="flex justify-end mb-2">
             <WordFrequencyDialog currentVideos={videos} />
@@ -421,7 +412,7 @@ export default function Home() {
           ) : (
             <div className="text-center py-12 border-2 border-black rounded-lg bg-white">
               <h3 className="text-xl font-bold mb-2">No videos found</h3>
-              <p className="text-gray-500">Try adjusting your filters</p>
+              <p className="text-gray-500">Try adjusting your filters!</p>
             </div>
           )}
         </main>
