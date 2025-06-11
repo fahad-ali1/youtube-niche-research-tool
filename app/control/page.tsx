@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminGuard } from "@/app/components/AdminGuard";
 import NavigationMenu from "@/app/components/NavigationMenu";
 import YouTubeAuthButton from "@/app/components/YouTubeAuthButton";
 import { Competitor, VideoStatistics } from "@/types";
@@ -172,63 +173,65 @@ export default function ControlPanel() {
   const selectedCompetitor = competitors.find((c) => c.id === selectedChannel);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-2 md:p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Navigation Menu */}
-        <NavigationMenu
-          isUpdating={isUpdatingAll}
-          isCacheWiping={isCacheWiping}
-          onUpdate={handleUpdateAll}
-          onWipeCache={handleWipeCache}
-        />
-
-        <div className="grid grid-cols-1 mt-6 lg:grid-cols-2 gap-8 mb-8">
-          {/* YouTube Authentication */}
-          <YouTubeAuthButton />
-
-          {/* Video Fetching Panel */}
-          <VideoFetchingPanel
-            timePeriod={timePeriod}
-            isFetchingVideos={isFetchingVideos}
-            isUpdatingVideos={isUpdatingVideos}
-            onTimePeriodChange={setTimePeriod}
-            onFetchVideos={handleDirectFetch}
-            onUpdateVideos={handleUpdateVideos}
+    <AdminGuard>
+      <div className="min-h-screen bg-gray-100 p-2 md:p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Navigation Menu */}
+          <NavigationMenu
+            isUpdating={isUpdatingAll}
+            isCacheWiping={isCacheWiping}
+            onUpdate={handleUpdateAll}
+            onWipeCache={handleWipeCache}
           />
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Channel Management */}
-          <div>
-            {/* Add Channel Form */}
-            <AddChannelForm onAddChannel={handleAddChannel} />
+          <div className="grid grid-cols-1 mt-6 lg:grid-cols-2 gap-8 mb-8">
+            {/* YouTube Authentication */}
+            <YouTubeAuthButton />
 
-            {/* Competitors List */}
-            <CompetitorsList
-              competitors={competitors}
-              competitorStats={competitorStats}
-              selectedChannel={selectedChannel}
-              loading={loading}
-              onChannelClick={handleChannelClick}
-              onDeleteChannel={handleDeleteChannel}
-              onUpdateChannel={handleUpdateChannel}
+            {/* Video Fetching Panel */}
+            <VideoFetchingPanel
+              timePeriod={timePeriod}
+              isFetchingVideos={isFetchingVideos}
+              isUpdatingVideos={isUpdatingVideos}
+              onTimePeriodChange={setTimePeriod}
+              onFetchVideos={handleDirectFetch}
+              onUpdateVideos={handleUpdateVideos}
             />
           </div>
 
-          {/* Channel Statistics */}
-          <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-bold mb-4">
-              {selectedCompetitor?.title || selectedChannel} Statistics
-            </h2>
-            <ChannelStatistics
-              selectedChannel={selectedChannel}
-              selectedCompetitor={selectedCompetitor}
-              channelVideos={channelVideos}
-              channelStatsLoading={channelStatsLoading}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Channel Management */}
+            <div>
+              {/* Add Channel Form */}
+              <AddChannelForm onAddChannel={handleAddChannel} />
+
+              {/* Competitors List */}
+              <CompetitorsList
+                competitors={competitors}
+                competitorStats={competitorStats}
+                selectedChannel={selectedChannel}
+                loading={loading}
+                onChannelClick={handleChannelClick}
+                onDeleteChannel={handleDeleteChannel}
+                onUpdateChannel={handleUpdateChannel}
+              />
+            </div>
+
+            {/* Channel Statistics */}
+            <div className="bg-white p-6 border-4 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+              <h2 className="text-2xl font-bold mb-4">
+                {selectedCompetitor?.title || selectedChannel} Statistics
+              </h2>
+              <ChannelStatistics
+                selectedChannel={selectedChannel}
+                selectedCompetitor={selectedCompetitor}
+                channelVideos={channelVideos}
+                channelStatsLoading={channelStatsLoading}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </AdminGuard>
   );
 }
