@@ -55,6 +55,16 @@ export async function setCachedData(key: string, data: any, expirationInSeconds 
     const client = await getRedisClient();
     if (!client) return;
     
+    // If expiration is non-positive, treat this as a cache delete to avoid invalid EX=0
+    if (expirationInSeconds <= 0) {
+      try {
+        await client.del(key);
+      } catch (delError) {
+        console.error('Redis cache delete error:', delError);
+      }
+      return;
+    }
+
     await client.set(key, JSON.stringify(data), { EX: expirationInSeconds });
   } catch (error) {
     console.error('Redis cache setting error:', error);

@@ -1,55 +1,81 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+
+// YouTube API key will be provided via environment variable or request
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const MAX_RESULTS = 50; // Number of videos to fetch per channel
+
+async function fetchChannelVideos(channelId: string) {
+  const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${channelId}&part=snippet&order=date&type=video&maxResults=${MAX_RESULTS}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`YouTube API error: ${response.status} ${response.statusText}`);
+  }
+  const data = await response.json();
+  
+  // Get video IDs for stats lookup
+  const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+  
+  // Get detailed stats for all videos
+  const statsUrl = `https://www.googleapis.com/youtube/v3/videos?key=${YOUTUBE_API_KEY}&id=${videoIds}&part=statistics,snippet`;
+  const statsResponse = await fetch(statsUrl);
+  if (!statsResponse.ok) {
+    throw new Error(`YouTube API error: ${statsResponse.status} ${statsResponse.statusText}`);
+  }
+  const statsData = await statsResponse.json();
+  
+  return statsData.items.map((video: any) => ({
+    id: video.id,
+    title: video.snippet.title,
+    thumbnail: video.snippet.thumbnails.default.url,
+    publish_time: new Date(video.snippet.publishedAt),
+    view_count: parseInt(video.statistics.viewCount, 10),
+    like_count: parseInt(video.statistics.likeCount || '0', 10),
+    comment_count: parseInt(video.statistics.commentCount || '0', 10),
+    channel_id: video.snippet.channelId
+  }));
+}
 
 export async function POST() {
   try {
-    const webhookUrl = process.env.WEBHOOK_URL || 'http://localhost:5678/webhook/fetch_videos';
-    
-    // Create a timeout promise that resolves after 15 seconds
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          timedOut: true,
-          success: true,
-          message: "Workflow is updating! Refresh in a few minutes"
-        });
-      }, 15000); // 15 seconds
-    });
-    
-    // The actual fetch request
-    const fetchPromise = fetch(webhookUrl, {
-      method: 'GET',
-    }).then(async response => {
-      // Check if the response is OK
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`Webhook not found at ${webhookUrl}. Please ensure the n8n workflow is active and the webhook URL is correct.`);
+    // Get all competitors
+    const competitors = await prisma.competitors.findMany();
+    if (competitors.length === 0) {
+      return NextResponse.json({
+        success: false,
+        message: "No competitors found. Add some channels first."
+      });
+    }
+
+    let totalVideos = 0;
+    const errors: string[] = [];
+
+    // Fetch videos for each competitor
+    for (const competitor of competitors) {
+      try {
+        const videos = await fetchChannelVideos(competitor.id);
+        
+        // Store videos in database
+        for (const video of videos) {
+          await prisma.video_statistics.upsert({
+            where: { id: video.id },
+            update: video,
+            create: video
+          });
         }
-        throw new Error(`Webhook responded with status: ${response.status}`);
+        
+        totalVideos += videos.length;
+      } catch (error) {
+        console.error(`Error fetching videos for ${competitor.id}:`, error);
+        errors.push(`Failed to fetch videos for ${competitor.title || competitor.id}: ${error instanceof Error ? error.message : String(error)}`);
       }
-      
-      // Try to parse as JSON, fallback to text if it fails
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-      } else {
-        // If not JSON, return a success object with the text response
-        const text = await response.text();
-        return {
-          success: true,
-          message: text || 'Webhook executed successfully',
-          rawResponse: text
-        };
-      }
-    }).catch(error => {
-      // If it's a connection error, provide a more helpful message
-      if (error.message.includes('ECONNREFUSED')) {
-        throw new Error('Cannot connect to n8n service. Please ensure n8n is running on port 5678.');
-      }
-      throw error;
-    });
-    
-    // Race the fetch against the timeout
-    const data = await Promise.race([fetchPromise, timeoutPromise]);
+    }
+
+    const data = {
+      success: true,
+      message: `Successfully fetched ${totalVideos} videos from ${competitors.length} channels`,
+      errors: errors.length > 0 ? errors : undefined
+    };
     
     return NextResponse.json(data);
   } catch (error) {

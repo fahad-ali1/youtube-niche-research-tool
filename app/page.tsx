@@ -313,6 +313,15 @@ export default function Home() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              <Link href="/niche-research">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-1"
+                >
+                  🔍 Niche Research
+                </Button>
+              </Link>
               <WordFrequencyDialog currentVideos={videos} />
               <Button
                 variant="default"
